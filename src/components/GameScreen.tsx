@@ -10,6 +10,7 @@ import {
   shouldSpawnObstacle,
   trySpawnObstacle,
 } from '../logic/gameLogic';
+import { addRankingEntry } from '../logic/ranking';
 import { findHintCol } from '../logic/shiritori';
 import ScoreBar from './ScoreBar';
 import GameBoard from './GameBoard';
@@ -18,12 +19,12 @@ import HandCards from './HandCards';
 import PauseModal from './PauseModal';
 import GameOverModal from './GameOverModal';
 import ComboOverlay from './ComboOverlay';
-
 interface Props {
   state: GameState;
   setState: React.Dispatch<React.SetStateAction<GameState>>;
   onRestart: () => void;
   onTop: () => void;
+  onShowRanking: () => void;
 }
 
 function getChainLabel(matchCount: number): string {
@@ -32,7 +33,7 @@ function getChainLabel(matchCount: number): string {
   return 'CHAIN!';
 }
 
-export default function GameScreen({ state, setState, onRestart, onTop }: Props) {
+export default function GameScreen({ state, setState, onRestart, onTop, onShowRanking }: Props) {
   const [processing, setProcessing] = useState(false);
   const [displayBoard, setDisplayBoard] = useState<Board>(state.board);
   const [matchedCells, setMatchedCells] = useState<[number, number][]>([]);
@@ -40,14 +41,39 @@ export default function GameScreen({ state, setState, onRestart, onTop }: Props)
   const [comboCount, setComboCount] = useState(0);
   const [chainLabel, setChainLabel] = useState('');
   const [breakActive, setBreakActive] = useState(false);
+  const [rankPosition, setRankPosition] = useState<number | null>(null);
   const animTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rankingSavedRef = useRef(false);
 
   const clearTimer = () => {
     if (animTimer.current) clearTimeout(animTimer.current);
   };
 
   // =============================================
-  // 60秒タイマー（timed モード専用）
+  // ゲーム終了時にランキングへ保存（1回だけ）
+  // =============================================
+  useEffect(() => {
+    if (!state.isGameOver) {
+      rankingSavedRef.current = false;
+      setRankPosition(null);
+      return;
+    }
+    if (rankingSavedRef.current) return;
+    rankingSavedRef.current = true;
+
+    const rank = addRankingEntry(state.mode, {
+      score: state.score,
+      maxCombo: state.maxCombo,
+      wordsCleared: state.wordsCleared,
+      obstaclesDestroyed: state.obstaclesDestroyed,
+    });
+    setRankPosition(rank);
+  // state.isGameOver が true になった瞬間に実行。他の値は同一レンダー内で確定済み。
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.isGameOver]);
+
+  // =============================================
+  // 60秒 → 3分タイマー（timed モード専用）
   // =============================================
   useEffect(() => {
     if (state.mode !== 'timed') return;
@@ -92,7 +118,7 @@ export default function GameScreen({ state, setState, onRestart, onTop }: Props)
   };
 
   // =============================================
-  // 列選択（ブロック配置）
+  // 列選択（矢印ボタン or 列タップ — 共通処理）
   // =============================================
   const handleColSelect = useCallback((col: number) => {
     if (processing || state.isPaused || state.isGameOver) return;
@@ -108,26 +134,24 @@ export default function GameScreen({ state, setState, onRestart, onTop }: Props)
     setMatchedCells([]);
     setChainLabel('');
 
-    const runChain = (chainIndex: number, currentBoard: Board, accScore: number, accWords: number, accObstacles: number): void => {
+    const runChain = (
+      chainIndex: number,
+      currentBoard: Board,
+      accScore: number,
+      accWords: number,
+      accObstacles: number,
+    ): void => {
       if (chainIndex >= result.chains.length) {
-        // 全チェーン終了 → おじゃまスポーン判定 → 状態確定
         const newTurnsPlayed = state.turnsPlayed + 1;
         const newWordsCleared = state.wordsCleared + accWords;
         const newObstaclesDestroyed = state.obstaclesDestroyed + accObstacles;
         const newScore = state.score + accScore;
         const newBest = Math.max(state.bestScore, newScore);
 
-        // おじゃまブロックスポーン
+        // おじゃまスポーン判定
         let finalBoard = currentBoard;
         if (!checkGameOver(currentBoard)) {
-          const spawnCheck = shouldSpawnObstacle(
-            state.mode,
-            newScore,
-            newTurnsPlayed,
-            state.timeRemaining,
-            currentBoard,
-          );
-          if (spawnCheck) {
+          if (shouldSpawnObstacle(state.mode, newScore, newTurnsPlayed, state.timeRemaining, currentBoard)) {
             const spawned = trySpawnObstacle(currentBoard);
             if (spawned) finalBoard = spawned;
           }
@@ -174,12 +198,10 @@ export default function GameScreen({ state, setState, onRestart, onTop }: Props)
 
       const chain = result.chains[chainIndex];
 
-      // ① マッチしたセルを光らせる + チェーンラベル表示
       animTimer.current = setTimeout(() => {
         setChainLabel(getChainLabel(chain.matched.length));
         setMatchedCells(chain.matched);
 
-        // ② 消去 → 重力 → おじゃまBREAK演出 → 次のチェーンへ
         animTimer.current = setTimeout(() => {
           setChainLabel('');
           setMatchedCells([]);
@@ -246,6 +268,8 @@ export default function GameScreen({ state, setState, onRestart, onTop }: Props)
   };
 
   const isBlocked = processing || state.isPaused || state.isGameOver;
+  // 列タップを有効にする条件：カード選択済み・操作可能
+  const colTapEnabled = !isBlocked && state.selectedHandIndex !== null;
 
   return (
     <div className="game-screen">
@@ -276,6 +300,7 @@ export default function GameScreen({ state, setState, onRestart, onTop }: Props)
           matchedCells={matchedCells}
           selectedCol={state.selectedCol}
           hintCol={state.hintCol}
+          onColTap={colTapEnabled ? handleColSelect : undefined}
         />
         {chainLabel && (
           <div className="chain-label-overlay" key={chainLabel + matchedCells.length}>
@@ -322,8 +347,10 @@ export default function GameScreen({ state, setState, onRestart, onTop }: Props)
           isTimeUp={state.isTimeUp}
           wordsCleared={state.wordsCleared}
           obstaclesDestroyed={state.obstaclesDestroyed}
+          rankPosition={rankPosition}
           onRestart={handleRestartFull}
           onTop={handleTop}
+          onShowRanking={onShowRanking}
         />
       )}
     </div>

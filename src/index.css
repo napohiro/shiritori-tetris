@@ -1050,6 +1050,236 @@ button:active { transform: scale(0.95); }
 }
 
 /* =============================================
+   列タップゾーン
+   ============================================= */
+.col-tap-zones {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  z-index: 3;
+  pointer-events: none; /* デフォルトは非インタラクティブ */
+}
+
+.col-tap-zone {
+  height: 100%;
+  transition: background 0.12s;
+}
+
+/* 満杯列：少し暗くして押せないことを示す */
+.col-tap-zone.zone-full {
+  background: rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+/* 空き列（カード未選択時）：視覚変化なし */
+.col-tap-zone.zone-available {
+  pointer-events: none; /* tap-active クラスが付くと有効になる */
+}
+
+/* カード選択中：空き列をインタラクティブに */
+.col-tap-zones.tap-active .col-tap-zone.zone-available {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.col-tap-zones.tap-active .col-tap-zone.zone-available:hover,
+.col-tap-zones.tap-active .col-tap-zone.zone-available:active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ヒント列：シアンのうっすらハイライト */
+.col-tap-zone.zone-hint {
+  border-left: 1px solid rgba(240, 192, 64, 0.25);
+  border-right: 1px solid rgba(240, 192, 64, 0.25);
+}
+
+.col-tap-zones.tap-active .col-tap-zone.zone-available.zone-hint {
+  background: rgba(240, 192, 64, 0.06);
+}
+
+.col-tap-zones.tap-active .col-tap-zone.zone-available.zone-hint:hover {
+  background: rgba(240, 192, 64, 0.14);
+}
+
+/* =============================================
+   トップ画面 — 遊び方＋ランキングを横並びに
+   ============================================= */
+.top-sub-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.top-sub-buttons .btn-secondary {
+  flex: 1;
+}
+
+/* =============================================
+   ランキングモーダル
+   ============================================= */
+.ranking-modal {
+  max-height: 88dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 20px 16px 16px;
+}
+
+.ranking-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0 12px;
+}
+
+.ranking-tab {
+  flex: 1;
+  padding: 8px 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: var(--text-dim);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.ranking-tab.active {
+  background: rgba(56, 212, 240, 0.14);
+  border-color: var(--accent-cyan);
+  color: var(--text-bright);
+}
+
+.ranking-list-wrap {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.12) transparent;
+}
+
+.ranking-empty {
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  text-align: center;
+  padding: 32px 0;
+  letter-spacing: 0.05em;
+}
+
+.ranking-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ranking-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.04);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+.ranking-row.rank-top-1 {
+  background: rgba(240, 192, 64, 0.1);
+  border-color: rgba(240, 192, 64, 0.3);
+}
+
+.ranking-row.rank-top-2 {
+  background: rgba(200, 210, 220, 0.08);
+  border-color: rgba(200, 210, 220, 0.2);
+}
+
+.ranking-row.rank-top-3 {
+  background: rgba(180, 120, 60, 0.1);
+  border-color: rgba(180, 120, 60, 0.25);
+}
+
+.rank-num {
+  font-size: 1rem;
+  font-weight: 900;
+  min-width: 24px;
+  text-align: center;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.rank-top-1 .rank-num,
+.rank-top-2 .rank-num,
+.rank-top-3 .rank-num {
+  font-size: 1.2rem;
+}
+
+.rank-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rank-score {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-bright);
+  letter-spacing: 0.03em;
+}
+
+.rank-top-1 .rank-score { color: var(--accent-gold); }
+
+.rank-stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.rank-date {
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.03em;
+}
+
+.ranking-cap {
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.25);
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* =============================================
+   ランキング入り通知バッジ
+   ============================================= */
+.ranking-in-badge {
+  background: linear-gradient(135deg, rgba(240,192,64,0.22), rgba(240,120,40,0.18));
+  border: 1px solid rgba(240, 192, 64, 0.5);
+  color: var(--accent-gold);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 6px 14px;
+  border-radius: 20px;
+  text-align: center;
+  margin: 4px 0 6px;
+  animation: rankInPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes rankInPop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+/* ランキングを見る ボタン */
+.go-ranking-btn {
+  border-color: rgba(56, 212, 240, 0.3);
+  color: var(--accent-cyan);
+}
+
+/* =============================================
    Mode Selector（タイトル画面）
    ============================================= */
 .mode-selector {

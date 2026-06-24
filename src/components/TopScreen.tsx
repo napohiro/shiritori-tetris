@@ -4,9 +4,10 @@ import HowToPlay from './HowToPlay';
 
 interface Props {
   onStart: (mode: GameMode) => void;
+  onShowRanking: () => void;
 }
 
-export default function TopScreen({ onStart }: Props) {
+export default function TopScreen({ onStart, onShowRanking }: Props) {
   const [showHow, setShowHow] = useState(false);
   const [selectedMode, setSelectedMode] = useState<GameMode>('endless');
 
@@ -62,9 +63,14 @@ export default function TopScreen({ onStart }: Props) {
           <button className="btn-primary" onClick={() => onStart(selectedMode)}>
             ゲームをはじめる
           </button>
-          <button className="btn-secondary" onClick={() => setShowHow(true)}>
-            遊び方
-          </button>
+          <div className="top-sub-buttons">
+            <button className="btn-secondary" onClick={() => setShowHow(true)}>
+              遊び方
+            </button>
+            <button className="btn-secondary" onClick={onShowRanking}>
+              ランキング
+            </button>
+          </div>
         </div>
       </div>
 

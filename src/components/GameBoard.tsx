@@ -1,10 +1,13 @@
 import { Board, COLS, ROWS } from '../logic/types';
+import { availableCols } from '../logic/gameLogic';
 
 interface Props {
   board: Board;
   matchedCells: [number, number][];
   selectedCol: number | null;
   hintCol: number | null;
+  /** 列タップ時のコールバック（card選択済み・操作可能な場合のみ渡す） */
+  onColTap?: (col: number) => void;
 }
 
 /** 隣接するマッチ済みセル間のエッジ一覧を生成（SVGライン描画用）。 */
@@ -38,13 +41,17 @@ function getChainEdges(
   return edges;
 }
 
-export default function GameBoard({ board, matchedCells, selectedCol, hintCol }: Props) {
+export default function GameBoard({ board, matchedCells, selectedCol, hintCol, onColTap }: Props) {
   const matchedSet = new Set(matchedCells.map(([r, c]) => `${r},${c}`));
   const chainEdges = matchedCells.length > 0 ? getChainEdges(matchedCells) : [];
 
+  // 列タップゾーンのために空き列を計算
+  const availableSet = new Set(availableCols(board));
+  const tapActive = !!onColTap;
+
   return (
     <div className="game-board-wrapper">
-      {/* 列ハイライト */}
+      {/* 列ハイライト（背景） */}
       <div className="col-highlights">
         {Array.from({ length: COLS }).map((_, col) => (
           <div
@@ -96,6 +103,30 @@ export default function GameBoard({ board, matchedCells, selectedCol, hintCol }:
             );
           })
         )}
+      </div>
+
+      {/* 列タップゾーン（セルの上に重なる透明なヒットエリア） */}
+      <div className={['col-tap-zones', tapActive ? 'tap-active' : ''].filter(Boolean).join(' ')}>
+        {Array.from({ length: COLS }).map((_, col) => {
+          const isAvailable = availableSet.has(col);
+          const isHint = hintCol === col;
+
+          return (
+            <div
+              key={col}
+              className={[
+                'col-tap-zone',
+                isAvailable ? 'zone-available' : 'zone-full',
+                isHint ? 'zone-hint' : '',
+              ].filter(Boolean).join(' ')}
+              onClick={() => {
+                if (tapActive && isAvailable) onColTap!(col);
+              }}
+              aria-label={tapActive && isAvailable ? `${col + 1}列目に置く` : undefined}
+              role={tapActive && isAvailable ? 'button' : undefined}
+            />
+          );
+        })}
       </div>
 
       {/* チェーン接続ライン（SVGオーバーレイ） */}

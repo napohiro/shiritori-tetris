@@ -22,8 +22,11 @@ export default function HowToPlay({ onClose }: Props) {
             <div className="howto-step">
               <span className="howto-num">2</span>
               <div>
-                <strong>↓ で列を選んで置こう</strong>
-                <p>置きたい列の「↓」を押すと、選んだ言葉がその列の一番下に落ちます。</p>
+                <strong>列を選んで置こう</strong>
+                <p>
+                  盤面の列をタップするか、下の「↓」ボタンを押すと、選んだ言葉がその列に落ちます。<br />
+                  <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>盤面の列をタップして置けます！</span>
+                </p>
               </div>
             </div>
           </li>
