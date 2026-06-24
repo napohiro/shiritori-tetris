@@ -1,12 +1,12 @@
 export const COLS = 8;
 export const ROWS = 10;
+export const HAND_SIZE = 3;
+export const SHUFFLE_LIMIT = 3;
 
 export interface WordBlock {
   id: string;
   word: string;
   color: string;
-  isMatched?: boolean;
-  isFalling?: boolean;
 }
 
 export type Cell = WordBlock | null;
@@ -16,18 +16,17 @@ export type Screen = 'top' | 'game';
 
 export interface GameState {
   board: Board;
-  currentWord: string;
-  nextWord: string;
+  hand: string[];               // 3枚の手札
+  selectedHandIndex: number | null;
   wordQueue: string[];
   score: number;
   bestScore: number;
   combo: number;
   maxCombo: number;
+  shuffleRemaining: number;     // 残シャッフル回数
   selectedCol: number | null;
   screen: Screen;
   isGameOver: boolean;
   isPaused: boolean;
-  matchedCells: [number, number][];
-  showCombo: boolean;
   hintCol: number | null;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface Props {
   combo: number;
@@ -6,23 +6,20 @@ interface Props {
 }
 
 export default function ComboOverlay({ combo, visible }: Props) {
-  const [show, setShow] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (visible && combo >= 2) {
-      setShow(true);
-      const t = setTimeout(() => setShow(false), 1200);
-      return () => clearTimeout(t);
-    }
-  }, [visible, combo]);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
-  if (!show) return null;
+  if (!visible || combo < 2) return null;
 
   return (
-    <div className="combo-overlay">
-      <div className="combo-text">
-        {combo >= 3 ? 'CHAIN!' : 'COMBO!'}
-      </div>
+    <div className="combo-overlay" key={`combo-${combo}`}>
+      <div className="combo-text">COMBO!</div>
       <div className="combo-mult">×{combo}</div>
     </div>
   );

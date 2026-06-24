@@ -11,8 +11,10 @@ export default function App() {
     setGameState(prev => ({ ...prev, screen: 'game' }));
   };
 
+  // createInitialState が LocalStorage からベストスコアを読み込むので
+  // bestScore の明示的な引き渡しは不要
   const handleRestart = () => {
-    setGameState({ ...createInitialState(), screen: 'game', bestScore: gameState.bestScore });
+    setGameState({ ...createInitialState(), screen: 'game' });
   };
 
   return (
