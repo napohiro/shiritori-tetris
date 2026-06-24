@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Board, GameState } from '../logic/types';
 import {
   processTurn,
@@ -7,6 +7,8 @@ import {
   saveBestScore,
   replenishHand,
   shuffleHand,
+  shouldSpawnObstacle,
+  trySpawnObstacle,
 } from '../logic/gameLogic';
 import { findHintCol } from '../logic/shiritori';
 import ScoreBar from './ScoreBar';
@@ -21,6 +23,7 @@ interface Props {
   state: GameState;
   setState: React.Dispatch<React.SetStateAction<GameState>>;
   onRestart: () => void;
+  onTop: () => void;
 }
 
 function getChainLabel(matchCount: number): string {
@@ -29,18 +32,40 @@ function getChainLabel(matchCount: number): string {
   return 'CHAIN!';
 }
 
-export default function GameScreen({ state, setState, onRestart }: Props) {
+export default function GameScreen({ state, setState, onRestart, onTop }: Props) {
   const [processing, setProcessing] = useState(false);
   const [displayBoard, setDisplayBoard] = useState<Board>(state.board);
   const [matchedCells, setMatchedCells] = useState<[number, number][]>([]);
   const [showCombo, setShowCombo] = useState(false);
   const [comboCount, setComboCount] = useState(0);
   const [chainLabel, setChainLabel] = useState('');
+  const [breakActive, setBreakActive] = useState(false);
   const animTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearTimer = () => {
     if (animTimer.current) clearTimeout(animTimer.current);
   };
+
+  // =============================================
+  // 60秒タイマー（timed モード専用）
+  // =============================================
+  useEffect(() => {
+    if (state.mode !== 'timed') return;
+    if (state.isPaused || state.isGameOver || state.isTimeUp || state.timeRemaining <= 0) return;
+
+    const id = setTimeout(() => {
+      setState(prev => {
+        if (prev.isPaused || prev.isGameOver || prev.isTimeUp || prev.timeRemaining <= 0) return prev;
+        const next = prev.timeRemaining - 1;
+        if (next <= 0) {
+          return { ...prev, timeRemaining: 0, isTimeUp: true, isGameOver: true };
+        }
+        return { ...prev, timeRemaining: next };
+      });
+    }, 1000);
+
+    return () => clearTimeout(id);
+  }, [state.mode, state.isPaused, state.isGameOver, state.isTimeUp, state.timeRemaining, setState]);
 
   // =============================================
   // 手札選択
@@ -75,7 +100,7 @@ export default function GameScreen({ state, setState, onRestart }: Props) {
 
     const word = state.hand[state.selectedHandIndex];
     const result = processTurn(state.board, col, word);
-    if (!result) return; // 列が満杯
+    if (!result) return;
 
     setProcessing(true);
     setState(prev => ({ ...prev, selectedCol: col, hintCol: null }));
@@ -83,12 +108,30 @@ export default function GameScreen({ state, setState, onRestart }: Props) {
     setMatchedCells([]);
     setChainLabel('');
 
-    // アニメーション付きで各チェーンステップを処理
-    const runChain = (chainIndex: number, currentBoard: Board, accScore: number): void => {
+    const runChain = (chainIndex: number, currentBoard: Board, accScore: number, accWords: number, accObstacles: number): void => {
       if (chainIndex >= result.chains.length) {
-        // 全チェーン終了 → 状態を確定させる
+        // 全チェーン終了 → おじゃまスポーン判定 → 状態確定
+        const newTurnsPlayed = state.turnsPlayed + 1;
+        const newWordsCleared = state.wordsCleared + accWords;
+        const newObstaclesDestroyed = state.obstaclesDestroyed + accObstacles;
         const newScore = state.score + accScore;
         const newBest = Math.max(state.bestScore, newScore);
+
+        // おじゃまブロックスポーン
+        let finalBoard = currentBoard;
+        if (!checkGameOver(currentBoard)) {
+          const spawnCheck = shouldSpawnObstacle(
+            state.mode,
+            newScore,
+            newTurnsPlayed,
+            state.timeRemaining,
+            currentBoard,
+          );
+          if (spawnCheck) {
+            const spawned = trySpawnObstacle(currentBoard);
+            if (spawned) finalBoard = spawned;
+          }
+        }
 
         const { newHand, newQueue } = replenishHand(
           state.hand,
@@ -98,7 +141,7 @@ export default function GameScreen({ state, setState, onRestart }: Props) {
 
         setState(prev => ({
           ...prev,
-          board: currentBoard,
+          board: finalBoard,
           score: newScore,
           bestScore: newBest,
           combo: result.comboCount,
@@ -106,13 +149,16 @@ export default function GameScreen({ state, setState, onRestart }: Props) {
           hand: newHand,
           selectedHandIndex: null,
           wordQueue: newQueue,
-          isGameOver: checkGameOver(currentBoard),
+          isGameOver: checkGameOver(finalBoard),
           selectedCol: null,
+          turnsPlayed: newTurnsPlayed,
+          wordsCleared: newWordsCleared,
+          obstaclesDestroyed: newObstaclesDestroyed,
         }));
 
-        if (newScore > state.bestScore) saveBestScore(newScore);
+        if (newScore > state.bestScore) saveBestScore(newScore, state.mode);
 
-        setDisplayBoard(currentBoard);
+        setDisplayBoard(finalBoard);
         setMatchedCells([]);
         setChainLabel('');
 
@@ -133,18 +179,30 @@ export default function GameScreen({ state, setState, onRestart }: Props) {
         setChainLabel(getChainLabel(chain.matched.length));
         setMatchedCells(chain.matched);
 
-        // ② 消去 → 重力 → 次のチェーンへ
+        // ② 消去 → 重力 → おじゃまBREAK演出 → 次のチェーンへ
         animTimer.current = setTimeout(() => {
           setChainLabel('');
           setMatchedCells([]);
           setDisplayBoard(chain.boardAfterGravity);
-          runChain(chainIndex + 1, chain.boardAfterGravity, accScore + chain.scoreGain);
+
+          if (chain.destroyedObstaclePositions.length > 0) {
+            setBreakActive(true);
+            setTimeout(() => setBreakActive(false), 700);
+          }
+
+          runChain(
+            chainIndex + 1,
+            chain.boardAfterGravity,
+            accScore + chain.scoreGain,
+            accWords + chain.matched.length,
+            accObstacles + chain.destroyedObstaclePositions.length,
+          );
         }, 680);
       }, 150);
     };
 
     animTimer.current = setTimeout(() => {
-      runChain(0, result.boardAfterDrop, 0);
+      runChain(0, result.boardAfterDrop, 0, 0, 0);
     }, 100);
   }, [processing, state, setState]);
 
@@ -171,8 +229,20 @@ export default function GameScreen({ state, setState, onRestart }: Props) {
     setMatchedCells([]);
     setShowCombo(false);
     setChainLabel('');
+    setBreakActive(false);
     setDisplayBoard(createEmptyBoard());
     onRestart();
+  };
+
+  const handleTop = () => {
+    clearTimer();
+    setProcessing(false);
+    setMatchedCells([]);
+    setShowCombo(false);
+    setChainLabel('');
+    setBreakActive(false);
+    setDisplayBoard(createEmptyBoard());
+    onTop();
   };
 
   const isBlocked = processing || state.isPaused || state.isGameOver;
@@ -186,6 +256,8 @@ export default function GameScreen({ state, setState, onRestart }: Props) {
           bestScore={state.bestScore}
           combo={state.combo}
           maxCombo={state.maxCombo}
+          mode={state.mode}
+          timeRemaining={state.timeRemaining}
         />
         <div className="header-actions">
           <button className="icon-btn" onClick={handleHint} title="ヒント">
@@ -208,6 +280,11 @@ export default function GameScreen({ state, setState, onRestart }: Props) {
         {chainLabel && (
           <div className="chain-label-overlay" key={chainLabel + matchedCells.length}>
             <div className="chain-label-text">{chainLabel}</div>
+          </div>
+        )}
+        {breakActive && (
+          <div className="break-label-overlay" key={`break-${Date.now()}`}>
+            <div className="break-label-text">BREAK! +500</div>
           </div>
         )}
         <ComboOverlay combo={comboCount} visible={showCombo} />
@@ -241,7 +318,12 @@ export default function GameScreen({ state, setState, onRestart }: Props) {
           score={state.score}
           bestScore={state.bestScore}
           maxCombo={state.maxCombo}
+          mode={state.mode}
+          isTimeUp={state.isTimeUp}
+          wordsCleared={state.wordsCleared}
+          obstaclesDestroyed={state.obstaclesDestroyed}
           onRestart={handleRestartFull}
+          onTop={handleTop}
         />
       )}
     </div>

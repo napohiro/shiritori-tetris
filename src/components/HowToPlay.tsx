@@ -54,10 +54,32 @@ export default function HowToPlay({ onClose }: Props) {
               </div>
             </div>
           </li>
+          <li>
+            <div className="howto-step">
+              <span className="howto-num">6</span>
+              <div>
+                <strong>おじゃまブロックに注意！</strong>
+                <p>
+                  &#9632; の岩ブロックは言葉チェーンで消えない。<br />
+                  隣の言葉が消えるとダメージ（HP 2 → 1 → 破壊）。<br />
+                  2回ダメージで破壊すると <strong>+500点</strong>！
+                </p>
+              </div>
+            </div>
+          </li>
+          <li>
+            <div className="howto-step">
+              <span className="howto-num">7</span>
+              <div>
+                <strong>60秒チャレンジ</strong>
+                <p>制限時間60秒で高得点を競うモード。残り10秒でタイマーが赤くなり、TIME UP! で終了。一時停止中はタイマーも止まります。</p>
+              </div>
+            </div>
+          </li>
         </ol>
 
         <div className="howto-diagram">
-          <div className="diagram-label" style={{ marginBottom: '6px' }}>一直線の例</div>
+          <div className="diagram-label" style={{ marginBottom: '6px' }}>しりとりの例</div>
           <div className="diagram-row">
             <span className="ex-block small" style={{ background: '#4a90d9' }}>ねこ</span>
             <span className="ex-arrow" style={{ fontSize: '0.8rem' }}>&#8594;</span>
@@ -67,21 +89,13 @@ export default function HowToPlay({ onClose }: Props) {
           </div>
           <div className="diagram-label">&#10003; CHAIN! 消える</div>
 
-          <div className="diagram-label" style={{ marginBottom: '6px', marginTop: '10px' }}>L字・折れ曲がりの例</div>
-          <div className="diagram-row">
-            <span className="ex-block small" style={{ background: '#4a90d9' }}>ねこ</span>
-            <span className="ex-arrow" style={{ fontSize: '0.8rem' }}>&#8594;</span>
+          <div className="diagram-label" style={{ marginBottom: '6px', marginTop: '10px' }}>おじゃまブロックの例</div>
+          <div className="diagram-row" style={{ alignItems: 'center', gap: '6px' }}>
             <span className="ex-block small" style={{ background: '#48c774' }}>こあら</span>
-          </div>
-          <div className="diagram-row" style={{ paddingLeft: '62px' }}>
-            <span style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>&#8595;</span>
-          </div>
-          <div className="diagram-row" style={{ paddingLeft: '42px' }}>
+            <span className="ex-block small obstacle-demo">&#9632;</span>
             <span className="ex-block small" style={{ background: '#e74c6c' }}>らっぱ</span>
-            <span className="ex-arrow" style={{ fontSize: '0.8rem' }}>&#8594;</span>
-            <span className="ex-block small" style={{ background: '#f39c12' }}>ぱんだ</span>
           </div>
-          <div className="diagram-label">&#10003; L字でも GREAT CHAIN!</div>
+          <div className="diagram-label">&#10003; こあら・らっぱが消えると岩にダメージ！</div>
         </div>
 
         <div className="howto-rules">

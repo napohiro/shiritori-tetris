@@ -1,17 +1,38 @@
+import { GameMode, OBSTACLE_BREAK_BONUS } from '../logic/types';
+
 interface Props {
   score: number;
   bestScore: number;
   maxCombo: number;
+  mode: GameMode;
+  isTimeUp: boolean;
+  wordsCleared: number;
+  obstaclesDestroyed: number;
   onRestart: () => void;
+  onTop: () => void;
 }
 
-export default function GameOverModal({ score, bestScore, maxCombo, onRestart }: Props) {
+export default function GameOverModal({
+  score,
+  bestScore,
+  maxCombo,
+  mode,
+  isTimeUp,
+  wordsCleared,
+  obstaclesDestroyed,
+  onRestart,
+  onTop,
+}: Props) {
   const isNewBest = score > 0 && score >= bestScore;
+  const title = isTimeUp ? 'TIME UP!' : 'GAME OVER';
+  const titleClass = isTimeUp ? 'gameover-title timeup' : 'gameover-title';
+  const modeLabel = mode === 'timed' ? '60秒チャレンジ' : 'エンドレス';
 
   return (
     <div className="modal-overlay">
       <div className="modal-box gameover">
-        <h2 className="modal-title gameover-title">GAME OVER</h2>
+        <div className="go-mode-badge">{modeLabel}</div>
+        <h2 className={`modal-title ${titleClass}`}>{title}</h2>
 
         {isNewBest && (
           <div className="new-best-badge">NEW BEST!</div>
@@ -32,11 +53,29 @@ export default function GameOverModal({ score, bestScore, maxCombo, onRestart }:
               <span className="go-value go-combo">×{maxCombo}</span>
             </div>
           )}
+          <div className="go-score-row">
+            <span className="go-label">消去語数</span>
+            <span className="go-value">{wordsCleared}語</span>
+          </div>
+          {obstaclesDestroyed > 0 && (
+            <div className="go-score-row">
+              <span className="go-label">おじゃま破壊</span>
+              <span className="go-value go-obstacle">
+                {obstaclesDestroyed}個
+                <span className="go-bonus"> +{(obstaclesDestroyed * OBSTACLE_BREAK_BONUS).toLocaleString()}</span>
+              </span>
+            </div>
+          )}
         </div>
 
-        <button className="btn-primary" onClick={onRestart}>
-          もう一度遊ぶ
-        </button>
+        <div className="go-buttons">
+          <button className="btn-primary" onClick={onRestart}>
+            もう一度
+          </button>
+          <button className="btn-secondary" onClick={onTop}>
+            タイトルへ
+          </button>
+        </div>
       </div>
     </div>
   );

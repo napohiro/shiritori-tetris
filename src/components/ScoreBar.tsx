@@ -1,11 +1,16 @@
+import { GameMode } from '../logic/types';
+import TimerDisplay from './TimerDisplay';
+
 interface Props {
   score: number;
   bestScore: number;
   combo: number;
   maxCombo: number;
+  mode: GameMode;
+  timeRemaining: number;
 }
 
-export default function ScoreBar({ score, bestScore, combo, maxCombo }: Props) {
+export default function ScoreBar({ score, bestScore, combo, maxCombo, mode, timeRemaining }: Props) {
   return (
     <div className="score-bar">
       <div className="score-item">
@@ -14,10 +19,14 @@ export default function ScoreBar({ score, bestScore, combo, maxCombo }: Props) {
       </div>
 
       <div className="score-item center">
-        {combo >= 2 && (
-          <div className="combo-badge" key={combo}>
-            COMBO ×{combo}
-          </div>
+        {mode === 'timed' ? (
+          <TimerDisplay timeRemaining={timeRemaining} mode={mode} />
+        ) : (
+          combo >= 2 && (
+            <div className="combo-badge" key={combo}>
+              COMBO ×{combo}
+            </div>
+          )
         )}
       </div>
 

@@ -1,20 +1,22 @@
 import { useState } from 'react';
 import { createInitialState } from './logic/gameLogic';
-import { GameState } from './logic/types';
+import { GameMode, GameState } from './logic/types';
 import TopScreen from './components/TopScreen';
 import GameScreen from './components/GameScreen';
 
 export default function App() {
-  const [gameState, setGameState] = useState<GameState>(createInitialState);
+  const [gameState, setGameState] = useState<GameState>(() => createInitialState('endless'));
 
-  const handleStart = () => {
-    setGameState(prev => ({ ...prev, screen: 'game' }));
+  const handleStart = (mode: GameMode) => {
+    setGameState({ ...createInitialState(mode), screen: 'game' });
   };
 
-  // createInitialState が LocalStorage からベストスコアを読み込むので
-  // bestScore の明示的な引き渡しは不要
   const handleRestart = () => {
-    setGameState({ ...createInitialState(), screen: 'game' });
+    setGameState(prev => ({ ...createInitialState(prev.mode), screen: 'game' }));
+  };
+
+  const handleTop = () => {
+    setGameState(prev => ({ ...prev, screen: 'top' }));
   };
 
   return (
@@ -26,6 +28,7 @@ export default function App() {
           state={gameState}
           setState={setGameState}
           onRestart={handleRestart}
+          onTop={handleTop}
         />
       )}
     </div>

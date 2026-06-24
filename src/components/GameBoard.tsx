@@ -26,7 +26,6 @@ function getChainEdges(
       const nr = r + dr;
       const nc = c + dc;
       if (!cellSet.has(`${nr},${nc}`)) continue;
-      // 重複を避けるための正規化キー
       const key =
         r < nr || (r === nr && c < nc)
           ? `${r},${c}-${nr},${nc}`
@@ -72,12 +71,25 @@ export default function GameBoard({ board, matchedCells, selectedCol, hintCol }:
 
             return (
               <div key={key} className="board-cell">
-                {cell && (
+                {cell && cell.type === 'word' && (
                   <div
                     className={['word-block', isMatched ? 'matched' : ''].filter(Boolean).join(' ')}
                     style={{ '--block-color': cell.color } as React.CSSProperties}
                   >
                     <span className="word-text">{cell.word}</span>
+                  </div>
+                )}
+                {cell && cell.type === 'obstacle' && (
+                  <div className={`obstacle-block hp-${cell.hp}`}>
+                    <span className="obstacle-icon">&#9632;</span>
+                    <div className="obstacle-hp-bar">
+                      {[2, 1].map(level => (
+                        <span
+                          key={level}
+                          className={['hp-dot', cell.hp >= level ? 'full' : 'empty'].join(' ')}
+                        />
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
