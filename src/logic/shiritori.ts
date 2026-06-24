@@ -1,5 +1,9 @@
 import { Board, COLS, ROWS } from './types';
 
+// =============================================
+// 文字正規化
+// =============================================
+
 const SMALL_TO_LARGE: Record<string, string> = {
   'ぁ': 'あ', 'ぃ': 'い', 'ぅ': 'う', 'ぇ': 'え', 'ぉ': 'お',
   'っ': 'つ', 'ゃ': 'や', 'ゅ': 'ゆ', 'ょ': 'よ', 'ゎ': 'わ',
@@ -15,99 +19,84 @@ function getFirstChar(word: string): string {
 
 function getLastChar(word: string): string {
   let w = word;
+  // 末尾の長音符を除去して直前の文字を使う
   while (w.endsWith('ー') && w.length > 1) {
     w = w.slice(0, -1);
   }
   return normalizeChar(w[w.length - 1]);
 }
 
+/** prev の末尾と next の先頭が一致するかチェック（「ん」終わりはNG）*/
 function canChain(prev: string, next: string): boolean {
-  const lastOfPrev = getLastChar(prev);
-  if (lastOfPrev === 'ん') return false;
-  return lastOfPrev === getFirstChar(next);
+  const last = getLastChar(prev);
+  if (last === 'ん') return false;
+  return last === getFirstChar(next);
 }
 
-/**
- * Find all maximal contiguous shiritori sequences of length >= 3 in an ordered
- * word list. Returns arrays of indices into `words`.
- */
-function findChainRuns(words: string[]): number[][] {
-  const result: number[][] = [];
-  let i = 0;
-  while (i < words.length) {
-    let j = i + 1;
-    while (j < words.length && canChain(words[j - 1], words[j])) {
-      j++;
-    }
-    if (j - i >= 3) {
-      result.push(Array.from({ length: j - i }, (_, k) => i + k));
-    }
-    i++;
-  }
-  return result;
-}
+// =============================================
+// 8方向隣接リスト
+// =============================================
 
-const DIRS: [number, number][] = [
-  [0,  1],  // right
-  [1,  0],  // down
-  [1,  1],  // down-right
-  [1, -1],  // down-left
+const NEIGHBORS_8: readonly [number, number][] = [
+  [-1, -1], [-1, 0], [-1, 1],
+  [ 0, -1],          [ 0, 1],
+  [ 1, -1], [ 1, 0], [ 1, 1],
 ];
 
+// =============================================
+// グラフ DFS でしりとりチェーンを探索
+// =============================================
+
 /**
- * Returns all board positions that are part of a matching shiritori chain (3+).
+ * 盤面をグラフとして DFS 探索し、
+ * 「8方向隣接 + しりとり接続」で3語以上つながる経路上の
+ * 全セルを返す。チェーンは一直線でなくてよい（L字・ジグザグ可）。
  */
 export function findMatchedPositions(board: Board): [number, number][] {
   const matched = new Set<string>();
 
-  for (const [dr, dc] of DIRS) {
-    // Iterate over all line start positions for this direction
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        // Skip if a valid predecessor exists (not a line start)
-        const pr = r - dr;
-        const pc = c - dc;
-        if (pr >= 0 && pr < ROWS && pc >= 0 && pc < COLS) continue;
+  function dfs(
+    r: number,
+    c: number,
+    path: [number, number][],
+    inPath: Set<string>,
+  ): void {
+    const key = `${r},${c}`;
+    inPath.add(key);
+    path.push([r, c]);
 
-        // Traverse the entire line; split into contiguous non-null segments
-        const segments: [number, number][][] = [];
-        let seg: [number, number][] = [];
-        let rr = r;
-        let cc = c;
-
-        while (rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS) {
-          if (board[rr][cc] !== null) {
-            seg.push([rr, cc]);
-          } else {
-            if (seg.length >= 3) segments.push(seg);
-            seg = [];
-          }
-          rr += dr;
-          cc += dc;
-        }
-        if (seg.length >= 3) segments.push(seg);
-
-        // Check each segment in both directions
-        for (const s of segments) {
-          const words = s.map(([row, col]) => board[row][col]!.word);
-
-          // Forward
-          for (const run of findChainRuns(words)) {
-            for (const idx of run) {
-              matched.add(`${s[idx][0]},${s[idx][1]}`);
-            }
-          }
-
-          // Backward
-          const revWords = [...words].reverse();
-          for (const run of findChainRuns(revWords)) {
-            for (const idx of run) {
-              const actualIdx = s.length - 1 - idx;
-              matched.add(`${s[actualIdx][0]},${s[actualIdx][1]}`);
-            }
-          }
-        }
+    // 3語以上に達したらパス上の全セルを消去対象に追加
+    if (path.length >= 3) {
+      for (const [pr, pc] of path) {
+        matched.add(`${pr},${pc}`);
       }
+    }
+
+    const word = board[r][c]!.word;
+
+    // 8方向の隣接セルへ伸ばせるか試みる
+    for (const [dr, dc] of NEIGHBORS_8) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+      if (board[nr][nc] === null) continue;
+      const nKey = `${nr},${nc}`;
+      if (inPath.has(nKey)) continue; // 同一チェーン内での重複禁止
+      if (canChain(word, board[nr][nc]!.word)) {
+        dfs(nr, nc, path, inPath);
+      }
+    }
+
+    // バックトラック
+    path.pop();
+    inPath.delete(key);
+  }
+
+  // 全セルを起点として DFS
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] === null) continue;
+      dfs(r, c, [], new Set<string>());
     }
   }
 
@@ -117,14 +106,18 @@ export function findMatchedPositions(board: Board): [number, number][] {
   });
 }
 
+// =============================================
+// ヒント列の特定
+// =============================================
+
 /**
- * Find a hint column: a column where placing `word` might contribute to a chain.
+ * 次の言葉を各列にシミュレート配置し、
+ * 3語以上のチェーンが成立する列を探して返す。
+ * 新ルール（曲がりOK）に対応した正確な判定を行う。
  */
 export function findHintCol(board: Board, word: string): number | null {
-  const firstChar = getFirstChar(word);
-  const lastChar = getLastChar(word);
-
   for (let col = 0; col < COLS; col++) {
+    // 落下先の行を特定
     let dropRow = -1;
     for (let row = ROWS - 1; row >= 0; row--) {
       if (board[row][col] === null) {
@@ -132,25 +125,14 @@ export function findHintCol(board: Board, word: string): number | null {
         break;
       }
     }
-    if (dropRow === -1) continue;
+    if (dropRow === -1) continue; // 列が満杯
 
-    const adjacents: [number, number][] = [
-      [dropRow - 1, col],
-      [dropRow,     col - 1],
-      [dropRow,     col + 1],
-      [dropRow - 1, col - 1],
-      [dropRow - 1, col + 1],
-    ];
+    // 仮配置してマッチ判定
+    const sim: Board = board.map(r => [...r]);
+    sim[dropRow][col] = { id: '__hint__', word, color: '' };
 
-    for (const [nr, nc] of adjacents) {
-      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
-      const neighbor = board[nr][nc];
-      if (!neighbor) continue;
-      const nLast  = getLastChar(neighbor.word);
-      const nFirst = getFirstChar(neighbor.word);
-      if (nLast === firstChar || lastChar === nFirst) {
-        return col;
-      }
+    if (findMatchedPositions(sim).length >= 3) {
+      return col;
     }
   }
   return null;

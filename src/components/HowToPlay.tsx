@@ -32,7 +32,7 @@ export default function HowToPlay({ onClose }: Props) {
               <span className="howto-num">3</span>
               <div>
                 <strong>しりとりを3語以上つなげよう</strong>
-                <p>前の言葉の最後の文字 ＝ 次の言葉の最初の文字 が3語以上続くと…</p>
+                <p>前の言葉の最後の文字 ＝ 次の言葉の最初の文字 が3語以上つながると…</p>
               </div>
             </div>
           </li>
@@ -40,26 +40,38 @@ export default function HowToPlay({ onClose }: Props) {
             <div className="howto-step">
               <span className="howto-num">4</span>
               <div>
-                <strong>横・縦・斜めで消える！</strong>
-                <p>消えた後に上のブロックが落ちてきて、さらに連鎖することも！</p>
+                <strong>隣接していれば曲がってもOK！</strong>
+                <p>一直線でなくてよい。上下左右・斜めで隣り合っていれば、L字・ジグザグでも消える！</p>
               </div>
             </div>
           </li>
         </ol>
 
         <div className="howto-diagram">
+          <div className="diagram-label" style={{ marginBottom: '6px' }}>一直線の例</div>
           <div className="diagram-row">
             <span className="ex-block small" style={{ background: '#4a90d9' }}>ねこ</span>
+            <span className="ex-arrow" style={{ fontSize: '0.8rem' }}>→</span>
             <span className="ex-block small" style={{ background: '#48c774' }}>こあら</span>
+            <span className="ex-arrow" style={{ fontSize: '0.8rem' }}>→</span>
             <span className="ex-block small" style={{ background: '#e74c6c' }}>らっぱ</span>
           </div>
-          <div className="diagram-label">← しりとり成立！消える ✓</div>
-          <div className="diagram-row mt">
-            <span className="ex-block small" style={{ background: '#9b59b6' }}>きつね</span>
-            <span className="ex-block small" style={{ background: '#f39c12' }}>ねずみ</span>
-            <span className="ex-block small" style={{ background: '#1abc9c' }}>みかん</span>
+          <div className="diagram-label">✓ 消える</div>
+          <div className="diagram-label" style={{ marginBottom: '6px', marginTop: '10px' }}>L字・折れ曲がりの例</div>
+          <div className="diagram-row">
+            <span className="ex-block small" style={{ background: '#4a90d9' }}>ねこ</span>
+            <span className="ex-arrow" style={{ fontSize: '0.8rem' }}>→</span>
+            <span className="ex-block small" style={{ background: '#48c774' }}>こあら</span>
           </div>
-          <div className="diagram-label">← 縦・斜めでもOK ✓</div>
+          <div className="diagram-row" style={{ paddingLeft: '64px' }}>
+            <span style={{ color: 'var(--accent-cyan)', fontSize: '0.8rem', fontWeight: 700 }}>↓</span>
+          </div>
+          <div className="diagram-row" style={{ paddingLeft: '42px' }}>
+            <span className="ex-block small" style={{ background: '#e74c6c' }}>らっぱ</span>
+            <span className="ex-arrow" style={{ fontSize: '0.8rem' }}>→</span>
+            <span className="ex-block small" style={{ background: '#f39c12' }}>ぱんだ</span>
+          </div>
+          <div className="diagram-label">✓ L字でも消える！</div>
         </div>
 
         <div className="howto-rules">
