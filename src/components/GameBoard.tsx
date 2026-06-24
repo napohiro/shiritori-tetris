@@ -41,6 +41,37 @@ function getChainEdges(
   return edges;
 }
 
+/** 文字数に応じたフォントサイズを返す */
+function getWordFontSize(word: string): string {
+  const len = word.length;
+  if (len <= 2) return 'clamp(0.62rem, 2.5vw, 0.88rem)';
+  if (len <= 3) return 'clamp(0.55rem, 2.2vw, 0.82rem)';
+  if (len <= 4) return 'clamp(0.48rem, 1.9vw, 0.72rem)';
+  return 'clamp(0.40rem, 1.6vw, 0.60rem)';
+}
+
+/** 4文字以上は2行表示、最後の文字をゴールドでハイライト */
+function renderWordText(word: string) {
+  if (word.length <= 3) {
+    return (
+      <>
+        {word.slice(0, -1)}
+        <span className="word-last-char">{word.slice(-1)}</span>
+      </>
+    );
+  }
+  const mid = Math.ceil(word.length / 2);
+  const firstLine = word.slice(0, mid);
+  const secondLine = word.slice(mid);
+  return (
+    <>
+      {firstLine}
+      <br />
+      {secondLine.slice(0, -1)}<span className="word-last-char">{secondLine.slice(-1)}</span>
+    </>
+  );
+}
+
 export default function GameBoard({ board, matchedCells, selectedCol, hintCol, onColTap }: Props) {
   const matchedSet = new Set(matchedCells.map(([r, c]) => `${r},${c}`));
   const chainEdges = matchedCells.length > 0 ? getChainEdges(matchedCells) : [];
@@ -83,7 +114,9 @@ export default function GameBoard({ board, matchedCells, selectedCol, hintCol, o
                     className={['word-block', isMatched ? 'matched' : ''].filter(Boolean).join(' ')}
                     style={{ '--block-color': cell.color } as React.CSSProperties}
                   >
-                    <span className="word-text">{cell.word}</span>
+                    <span className="word-text" style={{ fontSize: getWordFontSize(cell.word) }}>
+                      {renderWordText(cell.word)}
+                    </span>
                   </div>
                 )}
                 {cell && cell.type === 'obstacle' && (

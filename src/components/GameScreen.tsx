@@ -49,6 +49,8 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   const [timerBonusGlow, setTimerBonusGlow] = useState(false);
   const animTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rankingSavedRef = useRef(false);
+  // タイマー発火と入力処理の競合を防ぐため、ref で即時フラグ管理
+  const isGameOverRef = useRef(false);
 
   const clearTimer = () => {
     if (animTimer.current) clearTimeout(animTimer.current);
@@ -89,6 +91,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
         if (prev.isPaused || prev.isGameOver || prev.isTimeUp || prev.timeRemaining <= 0) return prev;
         const next = prev.timeRemaining - 1;
         if (next <= 0) {
+          isGameOverRef.current = true; // 入力ハンドラーが次のイベントループで読む前に即時セット
           return { ...prev, timeRemaining: 0, isTimeUp: true, isGameOver: true };
         }
         return { ...prev, timeRemaining: next };
@@ -102,7 +105,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   // 手札選択
   // =============================================
   const handleCardSelect = (index: number) => {
-    if (processing || state.isPaused || state.isGameOver) return;
+    if (isGameOverRef.current || processing || state.isPaused || state.isGameOver) return;
     setState(prev => ({ ...prev, selectedHandIndex: index, hintCol: null }));
   };
 
@@ -110,7 +113,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   // シャッフル
   // =============================================
   const handleShuffle = () => {
-    if (processing || state.isPaused || state.isGameOver || state.shuffleRemaining <= 0) return;
+    if (isGameOverRef.current || processing || state.isPaused || state.isGameOver || state.shuffleRemaining <= 0) return;
     const { newHand, newQueue } = shuffleHand(state.wordQueue);
     setState(prev => ({
       ...prev,
@@ -126,7 +129,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   // 列選択（矢印ボタン or 列タップ — 共通処理）
   // =============================================
   const handleColSelect = useCallback((col: number) => {
-    if (processing || state.isPaused || state.isGameOver) return;
+    if (isGameOverRef.current || processing || state.isPaused || state.isGameOver) return;
     if (state.selectedHandIndex === null) return;
 
     const word = state.hand[state.selectedHandIndex];
@@ -174,9 +177,9 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
         );
 
         setState(prev => {
-          // 時間ボーナスを適用（上限210秒、すでに0秒なら加算しない）
+          // 時間ボーナス適用（上限210秒、0秒到達後・ゲーム終了後は加算しない）
           let newTimeRemaining = prev.timeRemaining;
-          if (totalTimeBonus > 0 && prev.mode === 'timed' && prev.timeRemaining > 0) {
+          if (totalTimeBonus > 0 && prev.mode === 'timed' && prev.timeRemaining > 0 && !prev.isGameOver) {
             newTimeRemaining = Math.min(MAX_TIMED_SECONDS, prev.timeRemaining + totalTimeBonus);
           }
           return {
@@ -189,7 +192,8 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
             hand: newHand,
             selectedHandIndex: null,
             wordQueue: newQueue,
-            isGameOver: checkGameOver(finalBoard),
+            // タイマーがすでに true にしていた場合は上書きしない
+            isGameOver: prev.isGameOver || checkGameOver(finalBoard),
             selectedCol: null,
             turnsPlayed: newTurnsPlayed,
             wordsCleared: newWordsCleared,
@@ -263,7 +267,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   // ヒント
   // =============================================
   const handleHint = () => {
-    if (processing || state.isPaused || state.isGameOver) return;
+    if (isGameOverRef.current || processing || state.isPaused || state.isGameOver) return;
     const wordForHint =
       state.selectedHandIndex !== null ? state.hand[state.selectedHandIndex] : state.hand[0];
     const hint = findHintCol(state.board, wordForHint);
@@ -277,6 +281,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   const handleResume = () => setState(prev => ({ ...prev, isPaused: false }));
 
   const handleRestartFull = () => {
+    isGameOverRef.current = false;
     clearTimer();
     setProcessing(false);
     setMatchedCells([]);
@@ -290,6 +295,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   };
 
   const handleTop = () => {
+    isGameOverRef.current = false;
     clearTimer();
     setProcessing(false);
     setMatchedCells([]);

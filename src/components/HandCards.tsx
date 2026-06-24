@@ -1,5 +1,13 @@
 import { SHUFFLE_LIMIT } from '../logic/types';
 
+function getHandWordFontSize(word: string): string {
+  const len = word.length;
+  if (len <= 3) return 'clamp(0.82rem, 3.4vw, 1rem)';
+  if (len <= 4) return 'clamp(0.72rem, 2.9vw, 0.9rem)';
+  if (len <= 5) return 'clamp(0.64rem, 2.5vw, 0.82rem)';
+  return 'clamp(0.56rem, 2.2vw, 0.72rem)';
+}
+
 interface Props {
   hand: string[];
   selectedIndex: number | null;
@@ -35,7 +43,7 @@ export default function HandCards({
             aria-pressed={selectedIndex === i}
             aria-label={`手札${i + 1}: ${word}${selectedIndex === i ? '（選択中）' : ''}`}
           >
-            <span className="hand-word">{word}</span>
+            <span className="hand-word" style={{ fontSize: getHandWordFontSize(word) }}>{word}</span>
             {selectedIndex === i && <span className="hand-selected-mark" aria-hidden="true" />}
           </button>
         ))}
