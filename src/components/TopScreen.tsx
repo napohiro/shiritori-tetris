@@ -52,8 +52,8 @@ export default function TopScreen({ onStart }: Props) {
             onClick={() => setSelectedMode('timed')}
           >
             <span className="mode-icon">&#9203;</span>
-            <span className="mode-name">60秒チャレンジ</span>
-            <span className="mode-desc">60秒で高得点を目指そう</span>
+            <span className="mode-name">3分チャレンジ</span>
+            <span className="mode-desc">3分で高得点を目指そう</span>
           </button>
         </div>
 

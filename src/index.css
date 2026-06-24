@@ -1085,59 +1085,63 @@ button:active { transform: scale(0.95); }
 }
 
 /* =============================================
-   Timer Display（60秒チャレンジ）
+   Timer Display（3分チャレンジ）
    ============================================= */
 .timer-display {
   display: flex;
   align-items: baseline;
-  gap: 2px;
   color: var(--accent-cyan);
   font-weight: 900;
-  letter-spacing: 0.05em;
-  transition: color 0.3s;
+  letter-spacing: 0.02em;
+  transition: color 0.4s;
 }
 
 .timer-value {
-  font-size: clamp(1.1rem, 5vw, 1.4rem);
+  font-size: clamp(1.05rem, 4.5vw, 1.35rem);
   line-height: 1;
-  min-width: 28px;
-  text-align: right;
-  display: inline-block;
-  animation: timerChange 0.15s ease-out;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
 }
 
-.timer-unit {
-  font-size: 0.75rem;
-  font-weight: 700;
-  opacity: 0.8;
+.timer-min,
+.timer-sec {
+  font-variant-numeric: tabular-nums;
 }
 
-@keyframes timerChange {
-  0%   { transform: scale(1.3); opacity: 0.7; }
-  100% { transform: scale(1);   opacity: 1; }
+.timer-colon {
+  opacity: 0.7;
+  margin: 0 1px;
 }
 
-.timer-display.urgent .timer-value,
-.timer-display.urgent .timer-unit {
-  color: #ff8040;
-  animation: timerChange 0.15s ease-out, timerPulse 1s ease-in-out infinite;
+/* 残り30秒：やや緊張感（アンバー） */
+.timer-display.tense .timer-value {
+  color: #f0a040;
 }
 
-.timer-display.critical .timer-value,
-.timer-display.critical .timer-unit {
+/* 残り10秒：オレンジ・点滅 */
+.timer-display.urgent .timer-value {
+  color: #ff7030;
+  animation: timerPulse 1s ease-in-out infinite;
+}
+
+/* 残り5秒：赤・毎秒バウンスアニメーション */
+.timer-display.critical .timer-value {
   color: #ff3030;
   text-shadow: 0 0 16px rgba(255, 48, 48, 0.7);
-  animation: timerChange 0.15s ease-out, timerCritical 0.5s ease-in-out infinite;
+  animation: timerBounce 0.35s ease-out;
 }
 
 @keyframes timerPulse {
   0%, 100% { opacity: 1; }
-  50%       { opacity: 0.55; }
+  50%       { opacity: 0.5; }
 }
 
-@keyframes timerCritical {
-  0%, 100% { transform: scale(1);    opacity: 1; }
-  50%       { transform: scale(1.1); opacity: 0.65; }
+@keyframes timerBounce {
+  0%   { transform: scale(1.45); opacity: 0.7; }
+  55%  { transform: scale(0.95); }
+  80%  { transform: scale(1.05); }
+  100% { transform: scale(1);   opacity: 1; }
 }
 
 /* =============================================

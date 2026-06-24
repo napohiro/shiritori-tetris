@@ -21,7 +21,7 @@ import { findMatchedPositions } from './shiritori';
 
 const BEST_SCORE_KEYS: Record<GameMode, string> = {
   endless: 'shiritori-tetris-best-endless',
-  timed: 'shiritori-tetris-best-timed',
+  timed: 'shiritori-tetris-best-3min',
 };
 
 export function loadBestScore(mode: GameMode = 'endless'): number {
@@ -66,7 +66,7 @@ export function createInitialState(mode: GameMode = 'endless'): GameState {
     selectedCol: null,
     screen: 'top',
     mode,
-    timeRemaining: mode === 'timed' ? 60 : 0,
+    timeRemaining: mode === 'timed' ? 180 : 0,
     isTimeUp: false,
     isGameOver: false,
     isPaused: false,
@@ -259,9 +259,10 @@ export function shouldSpawnObstacle(
     if (score < 800 || turnsPlayed < 12) return false;
     return turnsPlayed % 10 === 0 && Math.random() < 0.45;
   } else {
-    const elapsed = 60 - timeRemaining;
-    if (elapsed < 20) return false;
-    const chance = Math.min(0.6, (elapsed - 20) / 70);
+    const elapsed = 180 - timeRemaining;
+    if (elapsed < 40) return false;
+    // 40秒後から確率が増加し、120秒後以降は最大55%に達する
+    const chance = Math.min(0.55, (elapsed - 40) / 145);
     return Math.random() < chance;
   }
 }

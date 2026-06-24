@@ -71,8 +71,8 @@ export default function HowToPlay({ onClose }: Props) {
             <div className="howto-step">
               <span className="howto-num">7</span>
               <div>
-                <strong>60秒チャレンジ</strong>
-                <p>制限時間60秒で高得点を競うモード。残り10秒でタイマーが赤くなり、TIME UP! で終了。一時停止中はタイマーも止まります。</p>
+                <strong>3分チャレンジ</strong>
+                <p>制限時間3分で高得点を競うモード。残り30秒で緊張感のある表示になり、残り10秒で赤くなる。TIME UP! で終了。一時停止中はタイマーも止まります。</p>
               </div>
             </div>
           </li>

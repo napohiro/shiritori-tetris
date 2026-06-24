@@ -26,7 +26,7 @@ export default function GameOverModal({
   const isNewBest = score > 0 && score >= bestScore;
   const title = isTimeUp ? 'TIME UP!' : 'GAME OVER';
   const titleClass = isTimeUp ? 'gameover-title timeup' : 'gameover-title';
-  const modeLabel = mode === 'timed' ? '60秒チャレンジ' : 'エンドレス';
+  const modeLabel = mode === 'timed' ? '3分チャレンジ' : 'エンドレス';
 
   return (
     <div className="modal-overlay">
