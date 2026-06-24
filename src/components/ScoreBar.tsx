@@ -8,9 +8,10 @@ interface Props {
   maxCombo: number;
   mode: GameMode;
   timeRemaining: number;
+  timerBonusGlow?: boolean;
 }
 
-export default function ScoreBar({ score, bestScore, combo, maxCombo, mode, timeRemaining }: Props) {
+export default function ScoreBar({ score, bestScore, combo, maxCombo, mode, timeRemaining, timerBonusGlow = false }: Props) {
   return (
     <div className="score-bar">
       <div className="score-item">
@@ -20,7 +21,11 @@ export default function ScoreBar({ score, bestScore, combo, maxCombo, mode, time
 
       <div className="score-item center">
         {mode === 'timed' ? (
-          <TimerDisplay timeRemaining={timeRemaining} mode={mode} />
+          <TimerDisplay
+            timeRemaining={timeRemaining}
+            mode={mode}
+            bonusGlow={timerBonusGlow}
+          />
         ) : (
           combo >= 2 && (
             <div className="combo-badge" key={combo}>

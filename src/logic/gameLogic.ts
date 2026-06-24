@@ -146,6 +146,25 @@ export function calcScore(matchCount: number, combo: number): number {
   return base * Math.max(1, combo);
 }
 
+/** 3分チャレンジ：消去語数に応じた時間ボーナス（秒） */
+export function calcTimeBonus(matchCount: number): number {
+  if (matchCount >= 6) return 20;
+  if (matchCount >= 5) return 15;
+  if (matchCount >= 4) return 10;
+  if (matchCount >= 3) return 5;
+  return 0;
+}
+
+/** 3分チャレンジ：コンボに応じた追加時間ボーナス（秒） */
+export function calcComboTimeBonus(comboCount: number): number {
+  if (comboCount >= 3) return 5;
+  if (comboCount >= 2) return 3;
+  return 0;
+}
+
+/** 3分チャレンジの残り時間上限（3分30秒） */
+export const MAX_TIMED_SECONDS = 210;
+
 // =============================================
 // おじゃまブロック
 // =============================================

@@ -75,7 +75,9 @@ export default function HowToPlay({ onClose }: Props) {
               <span className="howto-num">7</span>
               <div>
                 <strong>3分チャレンジ</strong>
-                <p>制限時間3分で高得点を競うモード。残り30秒で緊張感のある表示になり、残り10秒で赤くなる。TIME UP! で終了。一時停止中はタイマーも止まります。</p>
+                <p>制限時間3分で高得点を競うモード。<br />
+                  <strong style={{ color: 'var(--accent-cyan)' }}>3語以上のしりとりを消すと、残り時間が増えます！</strong><br />
+                  3語+5秒 / 4語+10秒 / 5語+15秒 / 6語以上+20秒。コンボなら追加ボーナスも。残り30秒で緊張感のある表示、残り10秒で赤表示。TIME UP! で終了。一時停止中はタイマーも止まります。</p>
               </div>
             </div>
           </li>

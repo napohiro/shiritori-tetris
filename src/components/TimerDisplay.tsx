@@ -3,24 +3,24 @@ import { GameMode } from '../logic/types';
 interface Props {
   timeRemaining: number;
   mode: GameMode;
+  bonusGlow?: boolean;
 }
 
-export default function TimerDisplay({ timeRemaining, mode }: Props) {
+export default function TimerDisplay({ timeRemaining, mode, bonusGlow = false }: Props) {
   if (mode !== 'timed') return null;
 
-  // 残り30秒：やや緊張感、残り10秒：ハイライト、残り5秒：クリティカルアニメーション
   const isTense    = timeRemaining <= 30 && timeRemaining > 10;
   const isUrgent   = timeRemaining <= 10 && timeRemaining > 5;
   const isCritical = timeRemaining <= 5;
 
   const cls = [
     'timer-display',
-    isTense    ? 'tense'    : '',
-    isUrgent   ? 'urgent'   : '',
-    isCritical ? 'critical' : '',
+    bonusGlow   ? 'bonus-glow' : '',
+    isTense     ? 'tense'      : '',
+    isUrgent    ? 'urgent'     : '',
+    isCritical  ? 'critical'   : '',
   ].filter(Boolean).join(' ');
 
-  // 残り5秒以内は key を毎秒変えてアニメーションを毎秒リトリガーする
   const animKey = isCritical ? timeRemaining : 'stable';
 
   const minutes = Math.floor(timeRemaining / 60);

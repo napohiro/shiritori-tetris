@@ -9,6 +9,9 @@ import {
   shuffleHand,
   shouldSpawnObstacle,
   trySpawnObstacle,
+  calcTimeBonus,
+  calcComboTimeBonus,
+  MAX_TIMED_SECONDS,
 } from '../logic/gameLogic';
 import { addRankingEntry } from '../logic/ranking';
 import { findHintCol } from '../logic/shiritori';
@@ -42,6 +45,8 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   const [chainLabel, setChainLabel] = useState('');
   const [breakActive, setBreakActive] = useState(false);
   const [rankPosition, setRankPosition] = useState<number | null>(null);
+  const [timeBonusInfo, setTimeBonusInfo] = useState<{ bonus: number; key: number } | null>(null);
+  const [timerBonusGlow, setTimerBonusGlow] = useState(false);
   const animTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rankingSavedRef = useRef(false);
 
@@ -140,6 +145,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
       accScore: number,
       accWords: number,
       accObstacles: number,
+      accTimeBonus: number,   // 各ステップで積算した時間ボーナス（秒）
     ): void => {
       if (chainIndex >= result.chains.length) {
         const newTurnsPlayed = state.turnsPlayed + 1;
@@ -147,6 +153,10 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
         const newObstaclesDestroyed = state.obstaclesDestroyed + accObstacles;
         const newScore = state.score + accScore;
         const newBest = Math.max(state.bestScore, newScore);
+
+        // 時間ボーナス合計（チェーンボーナス + コンボボーナス）
+        const comboTimeBonus = result.comboCount >= 2 ? calcComboTimeBonus(result.comboCount) : 0;
+        const totalTimeBonus = state.mode === 'timed' ? accTimeBonus + comboTimeBonus : 0;
 
         // おじゃまスポーン判定
         let finalBoard = currentBoard;
@@ -163,28 +173,46 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
           state.wordQueue,
         );
 
-        setState(prev => ({
-          ...prev,
-          board: finalBoard,
-          score: newScore,
-          bestScore: newBest,
-          combo: result.comboCount,
-          maxCombo: Math.max(prev.maxCombo, result.comboCount),
-          hand: newHand,
-          selectedHandIndex: null,
-          wordQueue: newQueue,
-          isGameOver: checkGameOver(finalBoard),
-          selectedCol: null,
-          turnsPlayed: newTurnsPlayed,
-          wordsCleared: newWordsCleared,
-          obstaclesDestroyed: newObstaclesDestroyed,
-        }));
+        setState(prev => {
+          // 時間ボーナスを適用（上限210秒、すでに0秒なら加算しない）
+          let newTimeRemaining = prev.timeRemaining;
+          if (totalTimeBonus > 0 && prev.mode === 'timed' && prev.timeRemaining > 0) {
+            newTimeRemaining = Math.min(MAX_TIMED_SECONDS, prev.timeRemaining + totalTimeBonus);
+          }
+          return {
+            ...prev,
+            board: finalBoard,
+            score: newScore,
+            bestScore: newBest,
+            combo: result.comboCount,
+            maxCombo: Math.max(prev.maxCombo, result.comboCount),
+            hand: newHand,
+            selectedHandIndex: null,
+            wordQueue: newQueue,
+            isGameOver: checkGameOver(finalBoard),
+            selectedCol: null,
+            turnsPlayed: newTurnsPlayed,
+            wordsCleared: newWordsCleared,
+            obstaclesDestroyed: newObstaclesDestroyed,
+            timeRemaining: newTimeRemaining,
+          };
+        });
 
         if (newScore > state.bestScore) saveBestScore(newScore, state.mode);
 
         setDisplayBoard(finalBoard);
         setMatchedCells([]);
         setChainLabel('');
+
+        // 時間ボーナス演出
+        if (totalTimeBonus > 0) {
+          setTimeBonusInfo({ bonus: totalTimeBonus, key: Date.now() });
+          setTimerBonusGlow(true);
+          setTimeout(() => {
+            setTimeBonusInfo(null);
+            setTimerBonusGlow(false);
+          }, 1600);
+        }
 
         if (result.comboCount >= 2) {
           setComboCount(result.comboCount);
@@ -197,6 +225,8 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
       }
 
       const chain = result.chains[chainIndex];
+      // このステップの時間ボーナス（timed モードのみ）
+      const stepTimeBonus = state.mode === 'timed' ? calcTimeBonus(chain.matched.length) : 0;
 
       animTimer.current = setTimeout(() => {
         setChainLabel(getChainLabel(chain.matched.length));
@@ -218,13 +248,14 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
             accScore + chain.scoreGain,
             accWords + chain.matched.length,
             accObstacles + chain.destroyedObstaclePositions.length,
+            accTimeBonus + stepTimeBonus,
           );
         }, 680);
       }, 150);
     };
 
     animTimer.current = setTimeout(() => {
-      runChain(0, result.boardAfterDrop, 0, 0, 0);
+      runChain(0, result.boardAfterDrop, 0, 0, 0, 0);
     }, 100);
   }, [processing, state, setState]);
 
@@ -252,6 +283,8 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     setShowCombo(false);
     setChainLabel('');
     setBreakActive(false);
+    setTimeBonusInfo(null);
+    setTimerBonusGlow(false);
     setDisplayBoard(createEmptyBoard());
     onRestart();
   };
@@ -263,6 +296,8 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     setShowCombo(false);
     setChainLabel('');
     setBreakActive(false);
+    setTimeBonusInfo(null);
+    setTimerBonusGlow(false);
     setDisplayBoard(createEmptyBoard());
     onTop();
   };
@@ -282,6 +317,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
           maxCombo={state.maxCombo}
           mode={state.mode}
           timeRemaining={state.timeRemaining}
+          timerBonusGlow={timerBonusGlow}
         />
         <div className="header-actions">
           <button className="icon-btn" onClick={handleHint} title="ヒント">
@@ -310,6 +346,11 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
         {breakActive && (
           <div className="break-label-overlay" key={`break-${Date.now()}`}>
             <div className="break-label-text">BREAK! +500</div>
+          </div>
+        )}
+        {timeBonusInfo && (
+          <div className="time-bonus-overlay" key={timeBonusInfo.key}>
+            <span className="time-bonus-text">+{timeBonusInfo.bonus} SEC</span>
           </div>
         )}
         <ComboOverlay combo={comboCount} visible={showCombo} />

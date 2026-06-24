@@ -55,7 +55,7 @@ export default function TopScreen({ onStart, onShowRanking }: Props) {
           >
             <span className="mode-icon">&#9203;</span>
             <span className="mode-name">3分チャレンジ</span>
-            <span className="mode-desc">3分で高得点を目指そう</span>
+            <span className="mode-desc">連鎖で時間を増やしながら高得点を目指そう</span>
           </button>
         </div>
 
