@@ -20,7 +20,8 @@ export default function TopScreen({ onStart }: Props) {
 
       <div className="top-content">
         <div className="top-logo">
-          <h1 className="top-title">しりとりテトリス</h1>
+          <h1 className="top-title">シリトリス</h1>
+          <p className="top-tagline">しりとりテトリス</p>
           <p className="top-subtitle">WORD CHAIN PUZZLE</p>
         </div>
 
