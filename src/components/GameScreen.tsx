@@ -43,16 +43,31 @@ interface Props {
 // =============================================
 
 const FAST_FALL_MS = 60;
+const PAUSE_RESUME_DELAY_MS = 750;
 
+// 30秒ごとに75ms ずつ速くなる（初期1050ms → 終盤最低400ms）
 function calcFallSpeed(timeRemaining: number): number {
   const elapsed = Math.max(0, 180 - timeRemaining);
-  return Math.max(250, 800 - Math.floor(elapsed / 30) * 100);
+  return Math.max(400, 1050 - Math.floor(elapsed / 30) * 75);
 }
 
 function getChainLabel(matchCount: number): string {
   if (matchCount >= 5) return 'AMAZING CHAIN!';
   if (matchCount >= 4) return 'GREAT CHAIN!';
   return 'CHAIN!';
+}
+
+// ─── 現在落下中の言葉の最初・最後の文字を取得 ───
+const SMALL_TO_LARGE: Record<string, string> = {
+  'ぁ': 'あ', 'ぃ': 'い', 'ぅ': 'う', 'ぇ': 'え', 'ぉ': 'お',
+  'っ': 'つ', 'ゃ': 'や', 'ゅ': 'ゆ', 'ょ': 'よ', 'ゎ': 'わ',
+};
+function normalizeKana(ch: string): string { return SMALL_TO_LARGE[ch] ?? ch; }
+function getFirstKana(word: string): string { return normalizeKana(word[0]); }
+function getLastKana(word: string): string {
+  let w = word;
+  while (w.endsWith('ー') && w.length > 1) w = w.slice(0, -1);
+  return normalizeKana(w[w.length - 1]);
 }
 
 // =============================================
@@ -87,6 +102,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   const [timerBonusGlow, setTimerBonusGlow] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [showTutorial, setShowTutorial] = useState(true);
+  const [pauseResumeDelay, setPauseResumeDelay] = useState(false);
 
   // ─── Refs ───
   const boardRef = useRef<Board>(state.board);
@@ -97,6 +113,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   const animTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timeRemainingRef = useRef(state.timeRemaining);
   const initializedRef = useRef(false);
+  const pauseResumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── Ref 同期 ───
   useEffect(() => { boardRef.current = state.board; }, [state.board]);
@@ -387,7 +404,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   // 落下ティック
   // =============================================
   useEffect(() => {
-    if (!fallingBlock || processing || state.isPaused || state.isGameOver || isGameOverRef.current) return;
+    if (!fallingBlock || processing || state.isPaused || state.isGameOver || isGameOverRef.current || pauseResumeDelay) return;
 
     const speed = fastFall ? FAST_FALL_MS : calcFallSpeed(timeRemainingRef.current);
 
@@ -408,7 +425,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     }, speed);
 
     return () => clearTimeout(id);
-  }, [fallingBlock, processing, state.isPaused, state.isGameOver, fastFall, landBlock]);
+  }, [fallingBlock, processing, state.isPaused, state.isGameOver, fastFall, landBlock, pauseResumeDelay]);
 
   // =============================================
   // 操作ハンドラ
@@ -504,7 +521,14 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     if (state.isGameOver) return;
     setState(prev => ({ ...prev, isPaused: !prev.isPaused }));
   };
-  const handleResume = () => setState(prev => ({ ...prev, isPaused: false }));
+  const handleResume = () => {
+    setState(prev => ({ ...prev, isPaused: false }));
+    if (pauseResumeTimerRef.current) clearTimeout(pauseResumeTimerRef.current);
+    setPauseResumeDelay(true);
+    pauseResumeTimerRef.current = setTimeout(() => {
+      setPauseResumeDelay(false);
+    }, PAUSE_RESUME_DELAY_MS);
+  };
 
   const clearAnimTimer = () => {
     if (animTimer.current) clearTimeout(animTimer.current);
@@ -577,6 +601,24 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
           </button>
         </div>
       </div>
+
+      {/* 現在落下中の言葉バナー */}
+      {fallingBlock && !state.isGameOver && (
+        <div
+          className="current-word-banner"
+          style={{ '--cwb-color': fallingBlock.color } as React.CSSProperties}
+        >
+          <div className="cwb-label">いま落ちている言葉</div>
+          <div className="cwb-word">
+            {fallingBlock.word.slice(0, -1)}
+            <span className="cwb-last-char">{fallingBlock.word.slice(-1)}</span>
+          </div>
+          <div className="cwb-hints">
+            <span>はじまり：<span className="cwb-char">{getFirstKana(fallingBlock.word)}</span></span>
+            <span>おわり：<span className="cwb-char cwb-char-last">{getLastKana(fallingBlock.word)}</span></span>
+          </div>
+        </div>
+      )}
 
       {/* 盤面エリア */}
       <div className="board-area">

@@ -1841,3 +1841,80 @@ button:active { transform: scale(0.95); }
   .ctrl-btn.ctrl-change { font-size: 0.72rem; }
   .bottom-area { padding: 4px 5px 5px; gap: 5px; }
 }
+
+/* =============================================
+   現在落下中の言葉バナー
+   ============================================= */
+.current-word-banner {
+  flex-shrink: 0;
+  padding: 6px 14px 7px;
+  background: rgba(12, 22, 46, 0.92);
+  border-top: 1.5px solid var(--cwb-color, var(--accent-cyan));
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cwb-label {
+  font-size: 0.52rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.cwb-word {
+  font-size: clamp(1.15rem, 5vw, 1.55rem);
+  font-weight: 900;
+  color: var(--text-bright);
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  word-break: break-all;
+}
+
+.cwb-last-char {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25em;
+  height: 1.25em;
+  border-radius: 50%;
+  border: 2px solid var(--cwb-color, var(--accent-gold));
+  color: var(--cwb-color, var(--accent-gold));
+  font-weight: 900;
+  vertical-align: middle;
+  box-shadow: 0 0 8px var(--cwb-color, rgba(240, 192, 64, 0.5));
+  margin-left: 2px;
+  font-size: 0.9em;
+}
+
+.cwb-hints {
+  font-size: 0.66rem;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  display: flex;
+  gap: 14px;
+}
+
+.cwb-char {
+  font-weight: 900;
+  color: var(--text-bright);
+}
+
+.cwb-char-last {
+  color: var(--cwb-color, var(--accent-gold));
+  text-shadow: 0 0 8px var(--cwb-color, rgba(240, 192, 64, 0.4));
+}
+
+@media (max-height: 680px) {
+  .current-word-banner { padding: 4px 12px 5px; }
+  .cwb-word { font-size: 1.1rem; }
+  .cwb-hints { font-size: 0.6rem; }
+}
+
+@media (max-height: 580px) {
+  .current-word-banner { padding: 3px 10px 4px; gap: 1px; }
+  .cwb-word { font-size: 0.95rem; }
+  .cwb-label { display: none; }
+}
