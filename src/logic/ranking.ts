@@ -1,5 +1,3 @@
-import { GameMode } from './types';
-
 // =============================================
 // 型定義
 // =============================================
@@ -9,6 +7,7 @@ export interface RankingEntry {
   maxCombo: number;
   wordsCleared: number;
   obstaclesDestroyed: number;
+  wordChanges: number;
   date: string; // 表示用日時文字列
 }
 
@@ -18,16 +17,13 @@ export interface RankingEntry {
 
 export const MAX_RANKING = 10;
 
-const RANKING_KEYS: Record<GameMode, string> = {
-  endless: 'shiritori-tetris-ranking-endless',
-  timed:   'shiritori-tetris-ranking-3min',
-};
+const RANKING_KEY = 'shiritori-tetris-ranking-3min';
 
 // =============================================
 // バリデーション
 // =============================================
 
-function isValidEntry(v: unknown): v is RankingEntry {
+function isValidEntry(v: unknown): v is Omit<RankingEntry, 'wordChanges'> & { wordChanges?: number } {
   if (!v || typeof v !== 'object') return false;
   const e = v as Record<string, unknown>;
   return (
@@ -43,21 +39,24 @@ function isValidEntry(v: unknown): v is RankingEntry {
 // 読み書き
 // =============================================
 
-export function loadRanking(mode: GameMode): RankingEntry[] {
+export function loadRanking(): RankingEntry[] {
   try {
-    const raw = localStorage.getItem(RANKING_KEYS[mode]);
+    const raw = localStorage.getItem(RANKING_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isValidEntry).slice(0, MAX_RANKING);
+    return parsed
+      .filter(isValidEntry)
+      .map(e => ({ ...e, wordChanges: e.wordChanges ?? 0 }))
+      .slice(0, MAX_RANKING);
   } catch {
     return [];
   }
 }
 
-function saveRanking(mode: GameMode, entries: RankingEntry[]): void {
+function saveRanking(entries: RankingEntry[]): void {
   try {
-    localStorage.setItem(RANKING_KEYS[mode], JSON.stringify(entries));
+    localStorage.setItem(RANKING_KEY, JSON.stringify(entries));
   } catch { /* StorageError — 無視 */ }
 }
 
@@ -71,8 +70,13 @@ function saveRanking(mode: GameMode, entries: RankingEntry[]): void {
  * score が 0 以下の場合は保存しない。
  */
 export function addRankingEntry(
-  mode: GameMode,
-  data: { score: number; maxCombo: number; wordsCleared: number; obstaclesDestroyed: number },
+  data: {
+    score: number;
+    maxCombo: number;
+    wordsCleared: number;
+    obstaclesDestroyed: number;
+    wordChanges: number;
+  },
 ): number | null {
   if (data.score <= 0) return null;
 
@@ -81,7 +85,7 @@ export function addRankingEntry(
 
   const newEntry: RankingEntry = { ...data, date };
 
-  const existing = loadRanking(mode);
+  const existing = loadRanking();
   const combined = [...existing, newEntry].sort((a, b) => b.score - a.score);
 
   // 新エントリの順位（参照同一性で探す）
@@ -89,7 +93,7 @@ export function addRankingEntry(
   const rank = rankIndex >= 0 && rankIndex < MAX_RANKING ? rankIndex + 1 : null;
 
   // 上位10件だけ保存
-  saveRanking(mode, combined.slice(0, MAX_RANKING));
+  saveRanking(combined.slice(0, MAX_RANKING));
 
   return rank;
 }

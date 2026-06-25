@@ -1,7 +1,5 @@
 export const COLS = 8;
 export const ROWS = 10;
-export const HAND_SIZE = 3;
-export const SHUFFLE_LIMIT = 3;
 export const MAX_OBSTACLES = 3;
 export const OBSTACLE_BREAK_BONUS = 500;
 
@@ -27,10 +25,10 @@ export type Cell = GameBlock | null;
 export type Board = Cell[][];
 
 // =============================================
-// ゲームモード
+// ゲームモード（3分チャレンジのみ）
 // =============================================
 
-export type GameMode = 'endless' | 'timed';
+export type GameMode = 'timed';
 
 export type Screen = 'top' | 'game';
 
@@ -40,24 +38,20 @@ export type Screen = 'top' | 'game';
 
 export interface GameState {
   board: Board;
-  hand: string[];
-  selectedHandIndex: number | null;
   wordQueue: string[];
   score: number;
   bestScore: number;
   combo: number;
   maxCombo: number;
-  shuffleRemaining: number;
-  selectedCol: number | null;
   screen: Screen;
   mode: GameMode;
-  timeRemaining: number;   // 秒数：timed=60スタート, endless=0（未使用）
+  timeRemaining: number;
   isTimeUp: boolean;
   isGameOver: boolean;
   isPaused: boolean;
-  hintCol: number | null;
   // プレイ統計
   turnsPlayed: number;
   wordsCleared: number;
   obstaclesDestroyed: number;
+  wordChanges: number;
 }

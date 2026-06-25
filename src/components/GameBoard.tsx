@@ -1,13 +1,10 @@
 import { Board, COLS, ROWS } from '../logic/types';
-import { availableCols } from '../logic/gameLogic';
+import { FallingBlock } from './GameScreen';
 
 interface Props {
   board: Board;
   matchedCells: [number, number][];
-  selectedCol: number | null;
-  hintCol: number | null;
-  /** 列タップ時のコールバック（card選択済み・操作可能な場合のみ渡す） */
-  onColTap?: (col: number) => void;
+  fallingBlock: FallingBlock | null;
 }
 
 /** 隣接するマッチ済みセル間のエッジ一覧を生成（SVGライン描画用）。 */
@@ -72,30 +69,15 @@ function renderWordText(word: string) {
   );
 }
 
-export default function GameBoard({ board, matchedCells, selectedCol, hintCol, onColTap }: Props) {
+export default function GameBoard({ board, matchedCells, fallingBlock }: Props) {
   const matchedSet = new Set(matchedCells.map(([r, c]) => `${r},${c}`));
   const chainEdges = matchedCells.length > 0 ? getChainEdges(matchedCells) : [];
 
-  // 列タップゾーンのために空き列を計算
-  const availableSet = new Set(availableCols(board));
-  const tapActive = !!onColTap;
+  // 落下ブロックが存在するセル
+  const fbKey = fallingBlock ? `${fallingBlock.row},${fallingBlock.col}` : '';
 
   return (
     <div className="game-board-wrapper">
-      {/* 列ハイライト（背景） */}
-      <div className="col-highlights">
-        {Array.from({ length: COLS }).map((_, col) => (
-          <div
-            key={col}
-            className={[
-              'col-highlight',
-              selectedCol === col ? 'selected' : '',
-              hintCol === col ? 'hint' : '',
-            ].filter(Boolean).join(' ')}
-          />
-        ))}
-      </div>
-
       {/* ゲーム盤面 */}
       <div
         className="game-board"
@@ -106,10 +88,24 @@ export default function GameBoard({ board, matchedCells, selectedCol, hintCol, o
             const cell = board[row][col];
             const key = `${row},${col}`;
             const isMatched = matchedSet.has(key);
+            const isFalling = fbKey === key;
 
             return (
               <div key={key} className="board-cell">
-                {cell && cell.type === 'word' && (
+                {/* 落下中ブロック（盤面ブロックの上に描画） */}
+                {isFalling && fallingBlock && (
+                  <div
+                    className="word-block falling"
+                    style={{ '--block-color': fallingBlock.color } as React.CSSProperties}
+                  >
+                    <span className="word-text" style={{ fontSize: getWordFontSize(fallingBlock.word) }}>
+                      {renderWordText(fallingBlock.word)}
+                    </span>
+                  </div>
+                )}
+
+                {/* 着地済みブロック（落下中は非表示） */}
+                {!isFalling && cell && cell.type === 'word' && (
                   <div
                     className={['word-block', isMatched ? 'matched' : ''].filter(Boolean).join(' ')}
                     style={{ '--block-color': cell.color } as React.CSSProperties}
@@ -119,7 +115,8 @@ export default function GameBoard({ board, matchedCells, selectedCol, hintCol, o
                     </span>
                   </div>
                 )}
-                {cell && cell.type === 'obstacle' && (
+
+                {!isFalling && cell && cell.type === 'obstacle' && (
                   <div className={`obstacle-block hp-${cell.hp}`}>
                     <span className="obstacle-icon">&#9632;</span>
                     <div className="obstacle-hp-bar">
@@ -136,30 +133,6 @@ export default function GameBoard({ board, matchedCells, selectedCol, hintCol, o
             );
           })
         )}
-      </div>
-
-      {/* 列タップゾーン（セルの上に重なる透明なヒットエリア） */}
-      <div className={['col-tap-zones', tapActive ? 'tap-active' : ''].filter(Boolean).join(' ')}>
-        {Array.from({ length: COLS }).map((_, col) => {
-          const isAvailable = availableSet.has(col);
-          const isHint = hintCol === col;
-
-          return (
-            <div
-              key={col}
-              className={[
-                'col-tap-zone',
-                isAvailable ? 'zone-available' : 'zone-full',
-                isHint ? 'zone-hint' : '',
-              ].filter(Boolean).join(' ')}
-              onClick={() => {
-                if (tapActive && isAvailable) onColTap!(col);
-              }}
-              aria-label={tapActive && isAvailable ? `${col + 1}列目に置く` : undefined}
-              role={tapActive && isAvailable ? 'button' : undefined}
-            />
-          );
-        })}
       </div>
 
       {/* チェーン接続ライン（SVGオーバーレイ） */}

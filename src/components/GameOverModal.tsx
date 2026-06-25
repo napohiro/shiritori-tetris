@@ -8,7 +8,8 @@ interface Props {
   isTimeUp: boolean;
   wordsCleared: number;
   obstaclesDestroyed: number;
-  rankPosition: number | null;  // 今回の順位（null=圏外）
+  wordChanges: number;
+  rankPosition: number | null;
   onRestart: () => void;
   onTop: () => void;
   onShowRanking: () => void;
@@ -18,10 +19,10 @@ export default function GameOverModal({
   score,
   bestScore,
   maxCombo,
-  mode,
   isTimeUp,
   wordsCleared,
   obstaclesDestroyed,
+  wordChanges,
   rankPosition,
   onRestart,
   onTop,
@@ -30,15 +31,13 @@ export default function GameOverModal({
   const isNewBest = score > 0 && score >= bestScore;
   const title = isTimeUp ? 'TIME UP!' : 'GAME OVER';
   const titleClass = isTimeUp ? 'gameover-title timeup' : 'gameover-title';
-  const modeLabel = mode === 'timed' ? '3分チャレンジ' : 'エンドレス';
 
   return (
     <div className="modal-overlay">
       <div className="modal-box gameover">
-        <div className="go-mode-badge">{modeLabel}</div>
+        <div className="go-mode-badge">3分チャレンジ</div>
         <h2 className={`modal-title ${titleClass}`}>{title}</h2>
 
-        {/* ランキング入り通知（NEWBESTより優先表示） */}
         {rankPosition !== null ? (
           <div className="ranking-in-badge">
             &#127942; ランキング {rankPosition}位 入り！
@@ -75,6 +74,10 @@ export default function GameOverModal({
               </span>
             </div>
           )}
+          <div className="go-score-row">
+            <span className="go-label">言葉変更回数</span>
+            <span className="go-value go-changes">{wordChanges}回</span>
+          </div>
         </div>
 
         <div className="go-buttons">

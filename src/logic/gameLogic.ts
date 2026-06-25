@@ -4,37 +4,32 @@ import {
   COLS,
   GameMode,
   GameState,
-  HAND_SIZE,
   MAX_OBSTACLES,
   OBSTACLE_BREAK_BONUS,
   ObstacleBlock,
   ROWS,
-  SHUFFLE_LIMIT,
   WordBlock,
 } from './types';
 import { assignColor, createWordQueue } from './words';
 import { findMatchedPositions } from './shiritori';
 
 // =============================================
-// LocalStorage（モード別）
+// LocalStorage
 // =============================================
 
-const BEST_SCORE_KEYS: Record<GameMode, string> = {
-  endless: 'shiritori-tetris-best-endless',
-  timed: 'shiritori-tetris-best-3min',
-};
+const BEST_SCORE_KEY = 'shiritori-tetris-best-3min';
 
-export function loadBestScore(mode: GameMode = 'endless'): number {
+export function loadBestScore(_mode: GameMode = 'timed'): number {
   try {
-    return parseInt(localStorage.getItem(BEST_SCORE_KEYS[mode]) ?? '0', 10) || 0;
+    return parseInt(localStorage.getItem(BEST_SCORE_KEY) ?? '0', 10) || 0;
   } catch {
     return 0;
   }
 }
 
-export function saveBestScore(score: number, mode: GameMode = 'endless'): void {
+export function saveBestScore(score: number, _mode: GameMode = 'timed'): void {
   try {
-    localStorage.setItem(BEST_SCORE_KEYS[mode], String(score));
+    localStorage.setItem(BEST_SCORE_KEY, String(score));
   } catch { /* StorageError — ignore */ }
 }
 
@@ -51,29 +46,25 @@ export function createEmptyBoard(): Board {
   return Array.from({ length: ROWS }, () => Array(COLS).fill(null) as Cell[]);
 }
 
-export function createInitialState(mode: GameMode = 'endless'): GameState {
+export function createInitialState(mode: GameMode = 'timed'): GameState {
   const queue = createWordQueue();
   return {
     board: createEmptyBoard(),
-    hand: queue.slice(0, HAND_SIZE),
-    selectedHandIndex: null,
-    wordQueue: queue.slice(HAND_SIZE),
+    wordQueue: queue,
     score: 0,
     bestScore: loadBestScore(mode),
     combo: 0,
     maxCombo: 0,
-    shuffleRemaining: SHUFFLE_LIMIT,
-    selectedCol: null,
     screen: 'top',
     mode,
-    timeRemaining: mode === 'timed' ? 180 : 0,
+    timeRemaining: 180,
     isTimeUp: false,
     isGameOver: false,
     isPaused: false,
-    hintCol: null,
     turnsPlayed: 0,
     wordsCleared: 0,
     obstaclesDestroyed: 0,
+    wordChanges: 0,
   };
 }
 
@@ -129,7 +120,7 @@ export function applyGravity(board: Board): Board {
   return newBoard;
 }
 
-/** 全列が最上段まで埋まっていたらゲームオーバー。 */
+/** 全列の最上段がすべて埋まっていたらゲームオーバー。 */
 export function isGameOver(board: Board): boolean {
   return board[0].every(cell => cell !== null);
 }
@@ -258,32 +249,20 @@ export function trySpawnObstacle(board: Board): Board | null {
 }
 
 /**
- * 現在のゲーム状態に応じておじゃまブロックをスポーンすべきか判定する。
- * @param mode ゲームモード
- * @param score 現在スコア
- * @param turnsPlayed 経過ターン数（この呼び出し時点での新ターン後の値）
- * @param timeRemaining 残り秒数（timed モード用）
+ * おじゃまブロックをスポーンすべきか判定する（3分チャレンジ専用）。
+ * @param timeRemaining 残り秒数
  * @param board 現在の盤面
  */
 export function shouldSpawnObstacle(
-  mode: GameMode,
-  score: number,
-  turnsPlayed: number,
   timeRemaining: number,
   board: Board,
 ): boolean {
   if (countObstacles(board) >= MAX_OBSTACLES) return false;
-
-  if (mode === 'endless') {
-    if (score < 800 || turnsPlayed < 12) return false;
-    return turnsPlayed % 10 === 0 && Math.random() < 0.45;
-  } else {
-    const elapsed = 180 - timeRemaining;
-    if (elapsed < 40) return false;
-    // 40秒後から確率が増加し、120秒後以降は最大55%に達する
-    const chance = Math.min(0.55, (elapsed - 40) / 145);
-    return Math.random() < chance;
-  }
+  const elapsed = Math.max(0, 180 - timeRemaining);
+  if (elapsed < 40) return false;
+  // 40秒後から確率が増加し、120秒後以降は最大55%に達する
+  const chance = Math.min(0.55, (elapsed - 40) / 145);
+  return Math.random() < chance;
 }
 
 // =============================================
@@ -372,30 +351,4 @@ export function cloneBoard(board: Board): Board {
 /** 空きのある列番号を返す。 */
 export function availableCols(board: Board): number[] {
   return Array.from({ length: COLS }, (_, i) => i).filter(col => board[0][col] === null);
-}
-
-/** 手札を補充する（新しいカードで差し替えた hand 配列と残りキューを返す）。 */
-export function replenishHand(
-  hand: string[],
-  playedIndex: number,
-  queue: string[],
-): { newHand: string[]; newQueue: string[] } {
-  const newHand = [...hand];
-  let q = [...queue];
-  if (q.length < HAND_SIZE) q = [...q, ...createWordQueue()];
-  newHand[playedIndex] = q[0];
-  q = q.slice(1);
-  if (q.length < 20) q = [...q, ...createWordQueue()];
-  return { newHand, newQueue: q };
-}
-
-/** シャッフル（手札3枚をキューから補充）。 */
-export function shuffleHand(
-  queue: string[],
-): { newHand: string[]; newQueue: string[] } {
-  let q = [...queue];
-  if (q.length < HAND_SIZE + 20) q = [...q, ...createWordQueue()];
-  const newHand = q.slice(0, HAND_SIZE);
-  q = q.slice(HAND_SIZE);
-  return { newHand, newQueue: q };
 }

@@ -1607,3 +1607,237 @@ button:active { transform: scale(0.95); }
   width: 100%;
   margin-top: 4px;
 }
+
+/* =============================================
+   落下ブロック（グロー発光）
+   ============================================= */
+.word-block.falling {
+  border: 2px solid rgba(56, 212, 240, 0.85);
+  box-shadow:
+    0 0 18px rgba(56, 212, 240, 0.7),
+    0 0 36px rgba(56, 212, 240, 0.35),
+    inset 0 1px 0 rgba(255,255,255,0.3);
+  animation: fallingGlow 0.9s ease-in-out infinite alternate;
+  z-index: 2;
+}
+
+@keyframes fallingGlow {
+  from {
+    box-shadow:
+      0 0 12px rgba(56, 212, 240, 0.5),
+      0 0 24px rgba(56, 212, 240, 0.25),
+      inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  to {
+    box-shadow:
+      0 0 24px rgba(56, 212, 240, 0.95),
+      0 0 48px rgba(56, 212, 240, 0.5),
+      inset 0 1px 0 rgba(255,255,255,0.4);
+  }
+}
+
+/* =============================================
+   落下ゲーム用 下部コントロール
+   ============================================= */
+
+/* NEXT表示行 */
+.next-word-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 6px;
+  background: rgba(255,255,255,0.04);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.next-label {
+  font-size: 0.58rem;
+  font-weight: 800;
+  color: var(--text-dim);
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+}
+
+.next-word-text {
+  font-size: clamp(0.88rem, 4vw, 1.1rem);
+  font-weight: 800;
+  color: var(--accent-cyan);
+  letter-spacing: 0.04em;
+  word-break: break-all;
+}
+
+/* 操作ボタングリッド（◀ ▼▼ ▶ 変更） */
+.control-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+/* 基本ボタン */
+.ctrl-btn {
+  height: 58px;
+  background: rgba(56, 212, 240, 0.1);
+  border: 1.5px solid rgba(56, 212, 240, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--accent-cyan);
+  font-size: 1.35rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: background 0.1s, box-shadow 0.1s, transform 0.08s;
+}
+
+.ctrl-btn:not(:disabled):active,
+.ctrl-btn:not(:disabled).active {
+  transform: scale(0.92);
+  background: rgba(56, 212, 240, 0.28);
+  box-shadow: 0 0 14px rgba(56, 212, 240, 0.5);
+}
+
+.ctrl-btn:not(:disabled):hover {
+  background: rgba(56, 212, 240, 0.16);
+}
+
+.ctrl-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* 高速落下ボタン */
+.ctrl-btn.ctrl-down {
+  background: rgba(56, 212, 240, 0.14);
+}
+
+.ctrl-btn.ctrl-down.active {
+  background: rgba(56, 212, 240, 0.35);
+  box-shadow: 0 0 18px rgba(56, 212, 240, 0.6);
+  transform: scale(0.94);
+}
+
+/* 変更ボタン */
+.ctrl-btn.ctrl-change {
+  background: rgba(240, 192, 64, 0.1);
+  border-color: rgba(240, 192, 64, 0.35);
+  color: var(--accent-gold);
+  font-size: 0.95rem;
+}
+
+.ctrl-btn.ctrl-change:not(:disabled):active {
+  background: rgba(240, 192, 64, 0.28);
+  box-shadow: 0 0 14px rgba(240, 192, 64, 0.5);
+}
+
+.ctrl-btn.ctrl-change:not(:disabled):hover {
+  background: rgba(240, 192, 64, 0.16);
+}
+
+/* =============================================
+   チュートリアルヒント
+   ============================================= */
+.tutorial-hint {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: clamp(0.6rem, 2.4vw, 0.75rem);
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+  background: rgba(10, 22, 40, 0.82);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 20px;
+  padding: 5px 14px;
+  pointer-events: none;
+  z-index: 10;
+  animation: tutorialFade 3.5s ease-out forwards;
+}
+
+@keyframes tutorialFade {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+}
+
+/* =============================================
+   TopScreen — モードカード（3分チャレンジ用）
+   ============================================= */
+.mode-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: rgba(56, 212, 240, 0.08);
+  border: 1.5px solid rgba(56, 212, 240, 0.3);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 20px rgba(56, 212, 240, 0.12);
+}
+
+.mode-card-icon {
+  font-size: 2rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.mode-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mode-card-name {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-bright);
+  letter-spacing: 0.04em;
+}
+
+.mode-card-desc {
+  font-size: 0.75rem;
+  color: rgba(56, 212, 240, 0.8);
+  line-height: 1.4;
+}
+
+/* =============================================
+   RankingModal — モードラベル
+   ============================================= */
+.ranking-mode-label {
+  text-align: center;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  letter-spacing: 0.1em;
+  margin: 6px 0 12px;
+  opacity: 0.85;
+}
+
+/* =============================================
+   GameOverModal — 言葉変更回数
+   ============================================= */
+.go-changes {
+  color: var(--text-dim);
+  font-size: 1.2rem;
+}
+
+/* =============================================
+   Responsive 更新（低身長画面）
+   ============================================= */
+@media (max-height: 680px) {
+  .ctrl-btn { height: 48px; font-size: 1.15rem; }
+  .ctrl-btn.ctrl-change { font-size: 0.82rem; }
+  .next-word-row { padding: 4px 6px; }
+  .next-word-text { font-size: 0.9rem; }
+}
+
+@media (max-height: 580px) {
+  .ctrl-btn { height: 40px; font-size: 1rem; }
+  .ctrl-btn.ctrl-change { font-size: 0.72rem; }
+  .bottom-area { padding: 4px 5px 5px; gap: 5px; }
+}

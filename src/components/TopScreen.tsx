@@ -1,15 +1,13 @@
 import { useState } from 'react';
-import { GameMode } from '../logic/types';
 import HowToPlay from './HowToPlay';
 
 interface Props {
-  onStart: (mode: GameMode) => void;
+  onStart: () => void;
   onShowRanking: () => void;
 }
 
 export default function TopScreen({ onStart, onShowRanking }: Props) {
   const [showHow, setShowHow] = useState(false);
-  const [selectedMode, setSelectedMode] = useState<GameMode>('endless');
 
   return (
     <div className="top-screen">
@@ -27,7 +25,7 @@ export default function TopScreen({ onStart, onShowRanking }: Props) {
         </div>
 
         <p className="top-desc">
-          言葉をつなげて、<br />3語以上のしりとりを消そう。
+          落ちてくる言葉を動かし、<br />連鎖で時間を増やそう。
         </p>
 
         <div className="top-example">
@@ -39,28 +37,17 @@ export default function TopScreen({ onStart, onShowRanking }: Props) {
           <span className="ex-badge">消える！</span>
         </div>
 
-        {/* モード選択 */}
-        <div className="mode-selector">
-          <button
-            className={['mode-btn', selectedMode === 'endless' ? 'active' : ''].filter(Boolean).join(' ')}
-            onClick={() => setSelectedMode('endless')}
-          >
-            <span className="mode-icon">&#9654;</span>
-            <span className="mode-name">エンドレス</span>
-            <span className="mode-desc">じっくり連鎖を狙おう</span>
-          </button>
-          <button
-            className={['mode-btn', selectedMode === 'timed' ? 'active' : ''].filter(Boolean).join(' ')}
-            onClick={() => setSelectedMode('timed')}
-          >
-            <span className="mode-icon">&#9203;</span>
-            <span className="mode-name">3分チャレンジ</span>
-            <span className="mode-desc">連鎖で時間を増やしながら高得点を目指そう</span>
-          </button>
+        {/* 3分チャレンジ説明 */}
+        <div className="mode-card">
+          <span className="mode-card-icon">&#9203;</span>
+          <div className="mode-card-body">
+            <span className="mode-card-name">3分チャレンジ</span>
+            <span className="mode-card-desc">しりとり連鎖で時間を増やしながら高得点を目指そう</span>
+          </div>
         </div>
 
         <div className="top-buttons">
-          <button className="btn-primary" onClick={() => onStart(selectedMode)}>
+          <button className="btn-primary" onClick={onStart}>
             ゲームをはじめる
           </button>
           <div className="top-sub-buttons">

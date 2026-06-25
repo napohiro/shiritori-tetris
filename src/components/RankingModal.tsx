@@ -1,11 +1,8 @@
-import { useState } from 'react';
-import { GameMode } from '../logic/types';
 import { RankingEntry, loadRanking, MAX_RANKING } from '../logic/ranking';
 
 const MEDAL = ['🥇', '🥈', '🥉'];
 
 interface Props {
-  initialMode?: GameMode;
   onClose: () => void;
 }
 
@@ -24,6 +21,9 @@ function RankingRow({ entry, rank }: { entry: RankingEntry; rank: number }) {
           {entry.obstaclesDestroyed > 0 && (
             <span>&#9632;{entry.obstaclesDestroyed}破壊</span>
           )}
+          {entry.wordChanges > 0 && (
+            <span>変更{entry.wordChanges}回</span>
+          )}
         </div>
         <span className="rank-date">{entry.date}</span>
       </div>
@@ -31,32 +31,15 @@ function RankingRow({ entry, rank }: { entry: RankingEntry; rank: number }) {
   );
 }
 
-export default function RankingModal({ initialMode = 'endless', onClose }: Props) {
-  const [tab, setTab] = useState<GameMode>(initialMode);
-  const ranking = loadRanking(tab);
+export default function RankingModal({ onClose }: Props) {
+  const ranking = loadRanking();
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box ranking-modal" onClick={e => e.stopPropagation()}>
         <h2 className="modal-title">ランキング</h2>
+        <p className="ranking-mode-label">3分チャレンジ</p>
 
-        {/* モード切り替えタブ */}
-        <div className="ranking-tabs">
-          <button
-            className={['ranking-tab', tab === 'endless' ? 'active' : ''].filter(Boolean).join(' ')}
-            onClick={() => setTab('endless')}
-          >
-            エンドレス
-          </button>
-          <button
-            className={['ranking-tab', tab === 'timed' ? 'active' : ''].filter(Boolean).join(' ')}
-            onClick={() => setTab('timed')}
-          >
-            3分チャレンジ
-          </button>
-        </div>
-
-        {/* ランキングリスト */}
         <div className="ranking-list-wrap">
           {ranking.length === 0 ? (
             <p className="ranking-empty">まだ記録がありません</p>
