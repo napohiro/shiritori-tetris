@@ -42,13 +42,22 @@ interface Props {
 // ヘルパー
 // =============================================
 
-const FAST_FALL_MS = 60;
-const PAUSE_RESUME_DELAY_MS = 750;
+const FAST_FALL_MS = 60;           // 高速落下（下ボタン）の落下間隔 ms
+const PAUSE_RESUME_DELAY_MS = 750; // ポーズ解除後の落下開始遅延 ms
 
-// 30秒ごとに75ms ずつ速くなる（初期1050ms → 終盤最低400ms）
+// ─── 通常落下速度の設定定数（ここを変えるだけで調整可能）───
+const FALL_SPEED_INITIAL_MS    = 1600; // 開始直後の落下間隔（目安: 1マス落下に1.6秒）
+const FALL_SPEED_MIN_MS        = 950;  // 最低落下間隔（終盤でもこれ以下にならない）
+const FALL_SPEED_ACCEL_INTERVAL = 30;  // 何秒経過ごとに加速するか
+const FALL_SPEED_ACCEL_STEP_MS =  50;  // 1ステップあたりの加速量 ms
+
+// 経過時間に応じて落下間隔を計算（秒換算 elapsed = 180 - timeRemaining）
 function calcFallSpeed(timeRemaining: number): number {
   const elapsed = Math.max(0, 180 - timeRemaining);
-  return Math.max(400, 1050 - Math.floor(elapsed / 30) * 75);
+  return Math.max(
+    FALL_SPEED_MIN_MS,
+    FALL_SPEED_INITIAL_MS - Math.floor(elapsed / FALL_SPEED_ACCEL_INTERVAL) * FALL_SPEED_ACCEL_STEP_MS,
+  );
 }
 
 function getChainLabel(matchCount: number): string {
