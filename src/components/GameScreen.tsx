@@ -12,7 +12,7 @@ import {
   MAX_TIMED_SECONDS,
 } from '../logic/gameLogic';
 import { addRankingEntry } from '../logic/ranking';
-import { assignColor, createWordQueue, WORD_LIST } from '../logic/words';
+import { assignColor, pickSmartWord, pickNextWord, WORD_LIST } from '../logic/words';
 import ScoreBar from './ScoreBar';
 import GameBoard from './GameBoard';
 import PauseModal from './PauseModal';
@@ -96,8 +96,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   const [fastFall, setFastFall] = useState(false);
   const fastFallRef = useRef(false);
 
-  // ─── 単語キュー（コンポーネントローカル） ───
-  const wordQueueRef = useRef<string[]>([]);
+  // （単語キューはスマート選択に置き換えたため削除）
 
   // ─── アニメーション用 ───
   const [displayBoard, setDisplayBoard] = useState<Board>(state.board);
@@ -129,13 +128,6 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   useEffect(() => { stateRef.current = state; }, [state]);
   useEffect(() => { timeRemainingRef.current = state.timeRemaining; }, [state.timeRemaining]);
 
-  // ─── ユーティリティ: キューから単語を取り出す ───
-  const shiftWord = (): string => {
-    if (wordQueueRef.current.length < 5) {
-      wordQueueRef.current = [...wordQueueRef.current, ...createWordQueue()];
-    }
-    return wordQueueRef.current.shift()!;
-  };
 
   // ─── スポーン（内部）───
   const spawnBlock = useCallback((boardAfterChains: Board) => {
@@ -147,8 +139,9 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
       return;
     }
 
-    const word = nextWordRef.current || shiftWord();
-    const newNext = shiftWord();
+    const word = nextWordRef.current || pickSmartWord(boardAfterChains, null, WORD_LIST);
+    // NEXTワード: 現在の単語末尾につながりやすい候補を優先
+    const newNext = pickNextWord(word, boardAfterChains, word, WORD_LIST);
     nextWordRef.current = newNext;
     setNextWord(newNext);
 
@@ -178,15 +171,10 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     if (initializedRef.current) return;
     initializedRef.current = true;
 
-    // 単語キューを初期化
-    wordQueueRef.current = [...state.wordQueue];
-    while (wordQueueRef.current.length < 20) {
-      wordQueueRef.current = [...wordQueueRef.current, ...createWordQueue()];
-    }
-
-    // 最初の2語を確保
-    const firstWord = shiftWord();
-    const secondWord = shiftWord();
+    // 最初の2語をスマート選択（盤面は空なのでランダムに近い）
+    const emptyBoard = createEmptyBoard();
+    const firstWord = pickSmartWord(emptyBoard, null, WORD_LIST);
+    const secondWord = pickNextWord(firstWord, emptyBoard, firstWord, WORD_LIST);
     nextWordRef.current = secondWord;
     setNextWord(secondWord);
 
@@ -484,9 +472,8 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     const fb = fallingBlockRef.current;
     if (!fb) return;
 
-    // 現在の単語と異なるランダムな単語を選ぶ
-    const candidates = WORD_LIST.filter(w => w !== fb.word);
-    const newWord = candidates[Math.floor(Math.random() * candidates.length)];
+    // 盤面につながりやすい単語を優先して選ぶ
+    const newWord = pickSmartWord(boardRef.current, fb.word, WORD_LIST);
 
     const updated = { ...fb, word: newWord };
     setFallingBlock(updated);
