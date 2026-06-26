@@ -38,13 +38,13 @@ function getChainEdges(
   return edges;
 }
 
-/** 文字数に応じたフォントサイズを返す */
+/** 文字数に応じたフォントサイズを返す（従来より一段階大きく） */
 function getWordFontSize(word: string): string {
   const len = word.length;
-  if (len <= 2) return 'clamp(0.62rem, 2.5vw, 0.88rem)';
-  if (len <= 3) return 'clamp(0.55rem, 2.2vw, 0.82rem)';
-  if (len <= 4) return 'clamp(0.48rem, 1.9vw, 0.72rem)';
-  return 'clamp(0.40rem, 1.6vw, 0.60rem)';
+  if (len <= 2) return 'clamp(0.76rem, 3.2vw, 1.05rem)';
+  if (len <= 3) return 'clamp(0.66rem, 2.8vw, 0.94rem)';
+  if (len <= 4) return 'clamp(0.58rem, 2.4vw, 0.82rem)';
+  return 'clamp(0.50rem, 2.0vw, 0.70rem)';
 }
 
 /** 4文字以上は2行表示、最後の文字をゴールドでハイライト */

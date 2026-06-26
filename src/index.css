@@ -439,28 +439,39 @@ button:active { transform: scale(0.95); }
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 40%;
-  background: linear-gradient(to bottom, rgba(255,255,255,0.2), transparent);
+  background: linear-gradient(to bottom, rgba(255,255,255,0.14), transparent);
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   pointer-events: none;
 }
 
 .word-text {
-  font-size: clamp(0.55rem, 2.2vw, 0.82rem);
+  font-size: clamp(0.62rem, 2.6vw, 0.9rem);
   font-weight: 800;
   color: #fff;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
-  letter-spacing: -0.02em;
+  /* アウトライン方式のシャドウ：どの背景色でも確実に読めるようにする */
+  text-shadow:
+    -1px -1px 0 rgba(0,0,0,0.85),
+     1px -1px 0 rgba(0,0,0,0.85),
+    -1px  1px 0 rgba(0,0,0,0.85),
+     1px  1px 0 rgba(0,0,0,0.85);
+  letter-spacing: -0.01em;
   text-align: center;
-  line-height: 1.2;
-  padding: 0 2px;
+  line-height: 1.25;
+  padding: 1px;
   white-space: normal;
   word-break: break-all;
   max-width: 100%;
 }
 
 .word-last-char {
-  color: #ffe980;
-  text-shadow: 0 0 5px rgba(255, 230, 100, 0.75), 0 1px 3px rgba(0,0,0,0.6);
+  color: #ffd740;
+  /* 最後の文字も強いアウトラインで任意の背景に対して視認性を確保 */
+  text-shadow:
+    -1px -1px 0 rgba(0,0,0,0.9),
+     1px -1px 0 rgba(0,0,0,0.9),
+    -1px  1px 0 rgba(0,0,0,0.9),
+     1px  1px 0 rgba(0,0,0,0.9),
+     0 0 8px rgba(255, 200, 0, 0.7);
 }
 
 /* Matched animation — 消去前に発光してから爆発 */
@@ -1660,7 +1671,7 @@ button:active { transform: scale(0.95); }
 }
 
 .next-word-text {
-  font-size: clamp(0.88rem, 4vw, 1.1rem);
+  font-size: clamp(0.95rem, 4.2vw, 1.18rem);
   font-weight: 800;
   color: var(--accent-cyan);
   letter-spacing: 0.04em;
@@ -1881,12 +1892,13 @@ button:active { transform: scale(0.95); }
 }
 
 .cwb-word {
-  font-size: clamp(1.1rem, 5vw, 1.45rem);
+  font-size: clamp(1.18rem, 5.2vw, 1.55rem);
   font-weight: 900;
   color: var(--text-bright);
   letter-spacing: 0.04em;
   line-height: 1.2;
   word-break: break-all;
+  text-shadow: 0 1px 8px rgba(0,0,0,0.5);
 }
 
 .cwb-last-char {
