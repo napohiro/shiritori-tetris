@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import HowToPlay from './HowToPlay';
+import { APP_VERSION, APP_UPDATE_DATE } from '../version';
 
 interface Props {
   onStart: () => void;
@@ -59,6 +60,11 @@ export default function TopScreen({ onStart, onShowRanking }: Props) {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* バージョン情報（最下部） */}
+      <div className="top-version" aria-label={`バージョン ${APP_VERSION}`}>
+        Ver.{APP_VERSION}&ensp;·&ensp;更新日：{APP_UPDATE_DATE}
       </div>
 
       {showHow && <HowToPlay onClose={() => setShowHow(false)} />}

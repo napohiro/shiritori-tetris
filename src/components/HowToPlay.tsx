@@ -1,3 +1,5 @@
+import { APP_VERSION, APP_UPDATE_DATE, APP_RELEASE_NOTES } from '../version';
+
 interface Props {
   onClose: () => void;
 }
@@ -99,6 +101,18 @@ export default function HowToPlay({ onClose }: Props) {
           <p>&#9888; 「ん」で終わる言葉はその先に続けられない</p>
           <p>&#9888; 全列が最上段まで埋まるとゲームオーバー</p>
           <p>&#9888; 残り時間が0秒になるとタイムアップ</p>
+        </div>
+
+        {/* バージョン情報・更新内容 */}
+        <div className="howto-version">
+          <div className="howto-version-header">
+            Ver.{APP_VERSION}&ensp;<span className="howto-version-date">更新日：{APP_UPDATE_DATE}</span>
+          </div>
+          <ul className="howto-version-notes">
+            {APP_RELEASE_NOTES.map((note, i) => (
+              <li key={i}>・{note}</li>
+            ))}
+          </ul>
         </div>
 
         <button className="btn-primary" onClick={onClose}>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import HowToPlay from './HowToPlay';
+import { APP_VERSION } from '../version';
 
 interface Props {
   onResume: () => void;
@@ -26,6 +27,7 @@ export default function PauseModal({ onResume, onRestart }: Props) {
             最初からやり直す
           </button>
         </div>
+        <div className="pause-version">Ver.{APP_VERSION}</div>
       </div>
     </div>
   );
