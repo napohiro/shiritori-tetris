@@ -81,7 +81,10 @@ export default function GameBoard({ board, matchedCells, fallingBlock }: Props) 
       {/* ゲーム盤面 */}
       <div
         className="game-board"
-        style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)` }}
+        style={{
+          gridTemplateColumns: `repeat(${COLS}, 1fr)`,
+          gridTemplateRows: `repeat(${ROWS}, 1fr)`,
+        }}
       >
         {Array.from({ length: ROWS }).map((_, row) =>
           Array.from({ length: COLS }).map((_, col) => {

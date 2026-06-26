@@ -1,5 +1,5 @@
 export const COLS = 8;
-export const ROWS = 10;
+export const ROWS = 12;
 export const MAX_OBSTACLES = 3;
 export const OBSTACLE_BREAK_BONUS = 500;
 

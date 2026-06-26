@@ -269,7 +269,7 @@ button:active { transform: scale(0.95); }
 .game-header {
   display: flex;
   align-items: center;
-  padding: 8px 10px 6px;
+  padding: 6px 10px 5px;
   gap: 8px;
   background: var(--bg-mid);
   border-bottom: 1px solid var(--border-cell);
@@ -356,7 +356,7 @@ button:active { transform: scale(0.95); }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 4px 4px;
+  padding: 4px 3px 3px;
   overflow: hidden;
   min-height: 0;
 }
@@ -479,12 +479,12 @@ button:active { transform: scale(0.95); }
 /* Bottom Area */
 .bottom-area {
   flex-shrink: 0;
-  padding: 6px 6px 8px;
+  padding: 5px 6px 10px;
   background: var(--bg-mid);
   border-top: 1px solid var(--border-cell);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 /* Next Word Card */
@@ -1034,9 +1034,9 @@ button:active { transform: scale(0.95); }
    Responsive
    ============================================= */
 @media (max-height: 700px) {
-  .game-header { padding: 5px 8px 4px; }
-  .board-area { padding: 4px 3px 3px; }
-  .bottom-area { padding: 5px 5px 6px; gap: 5px; }
+  .game-header { padding: 4px 8px 3px; }
+  .board-area { padding: 3px 2px 2px; }
+  .bottom-area { padding: 4px 5px 8px; gap: 5px; }
   .col-btn { height: 34px; }
   .hand-card { min-height: 44px; padding: 6px 3px; }
   .shuffle-btn { min-width: 44px; width: 44px; }
@@ -1667,30 +1667,48 @@ button:active { transform: scale(0.95); }
   word-break: break-all;
 }
 
-/* 操作ボタングリッド（◀ ▼▼ ▶ 変更） */
+/* 操作ボタングリッド（◀ ▼ ▶ の3ボタン） */
 .control-buttons {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1.3fr 1fr;
   gap: 8px;
 }
 
 /* 基本ボタン */
 .ctrl-btn {
-  height: 58px;
+  height: 64px;
   background: rgba(56, 212, 240, 0.1);
   border: 1.5px solid rgba(56, 212, 240, 0.3);
   border-radius: var(--radius-md);
   color: var(--accent-cyan);
-  font-size: 1.35rem;
   font-weight: 800;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 3px;
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   transition: background 0.1s, box-shadow 0.1s, transform 0.08s;
+}
+
+.ctrl-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  display: block;
+}
+
+.ctrl-icon-down {
+  font-size: 1.7rem;
+}
+
+.ctrl-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
 }
 
 .ctrl-btn:not(:disabled):active,
@@ -1709,32 +1727,17 @@ button:active { transform: scale(0.95); }
   cursor: not-allowed;
 }
 
-/* 高速落下ボタン */
+/* 高速落下ボタン（中央・目立つデザイン） */
 .ctrl-btn.ctrl-down {
-  background: rgba(56, 212, 240, 0.14);
+  background: rgba(56, 212, 240, 0.16);
+  border-color: rgba(56, 212, 240, 0.55);
+  box-shadow: 0 0 8px rgba(56, 212, 240, 0.18);
 }
 
 .ctrl-btn.ctrl-down.active {
-  background: rgba(56, 212, 240, 0.35);
-  box-shadow: 0 0 18px rgba(56, 212, 240, 0.6);
+  background: rgba(56, 212, 240, 0.38);
+  box-shadow: 0 0 20px rgba(56, 212, 240, 0.65);
   transform: scale(0.94);
-}
-
-/* 変更ボタン */
-.ctrl-btn.ctrl-change {
-  background: rgba(240, 192, 64, 0.1);
-  border-color: rgba(240, 192, 64, 0.35);
-  color: var(--accent-gold);
-  font-size: 0.95rem;
-}
-
-.ctrl-btn.ctrl-change:not(:disabled):active {
-  background: rgba(240, 192, 64, 0.28);
-  box-shadow: 0 0 14px rgba(240, 192, 64, 0.5);
-}
-
-.ctrl-btn.ctrl-change:not(:disabled):hover {
-  background: rgba(240, 192, 64, 0.16);
 }
 
 /* =============================================
@@ -1830,30 +1833,43 @@ button:active { transform: scale(0.95); }
    Responsive 更新（低身長画面）
    ============================================= */
 @media (max-height: 680px) {
-  .ctrl-btn { height: 48px; font-size: 1.15rem; }
-  .ctrl-btn.ctrl-change { font-size: 0.82rem; }
-  .next-word-row { padding: 4px 6px; }
-  .next-word-text { font-size: 0.9rem; }
+  .ctrl-btn { height: 54px; }
+  .ctrl-icon { font-size: 1.2rem; }
+  .ctrl-icon-down { font-size: 1.5rem; }
+  .ctrl-label { font-size: 0.55rem; }
+  .next-word-row { padding: 3px 6px; }
+  .next-word-text { font-size: 0.88rem; }
 }
 
 @media (max-height: 580px) {
-  .ctrl-btn { height: 40px; font-size: 1rem; }
-  .ctrl-btn.ctrl-change { font-size: 0.72rem; }
-  .bottom-area { padding: 4px 5px 5px; gap: 5px; }
+  .ctrl-btn { height: 44px; gap: 1px; }
+  .ctrl-icon { font-size: 1.05rem; }
+  .ctrl-icon-down { font-size: 1.3rem; }
+  .ctrl-label { font-size: 0.5rem; }
+  .bottom-area { padding: 3px 5px 6px; gap: 4px; }
 }
 
 /* =============================================
-   現在落下中の言葉バナー
+   現在落下中の言葉バナー（行レイアウト + 変更ボタン）
    ============================================= */
 .current-word-banner {
   flex-shrink: 0;
-  padding: 6px 14px 7px;
+  padding: 6px 10px 6px 14px;
   background: rgba(12, 22, 46, 0.92);
   border-top: 1.5px solid var(--cwb-color, var(--accent-cyan));
   border-bottom: 1px solid rgba(255,255,255,0.06);
   display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.cwb-main {
+  flex: 1;
+  display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .cwb-label {
@@ -1865,7 +1881,7 @@ button:active { transform: scale(0.95); }
 }
 
 .cwb-word {
-  font-size: clamp(1.15rem, 5vw, 1.55rem);
+  font-size: clamp(1.1rem, 5vw, 1.45rem);
   font-weight: 900;
   color: var(--text-bright);
   letter-spacing: 0.04em;
@@ -1890,11 +1906,11 @@ button:active { transform: scale(0.95); }
 }
 
 .cwb-hints {
-  font-size: 0.66rem;
+  font-size: 0.62rem;
   color: var(--text-dim);
   letter-spacing: 0.04em;
   display: flex;
-  gap: 14px;
+  gap: 12px;
 }
 
 .cwb-char {
@@ -1907,14 +1923,69 @@ button:active { transform: scale(0.95); }
   text-shadow: 0 0 8px var(--cwb-color, rgba(240, 192, 64, 0.4));
 }
 
+/* 変更ボタン（バナー内右側） */
+.cwb-change-btn {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 14px;
+  background: rgba(240, 192, 64, 0.1);
+  border: 1.5px solid rgba(240, 192, 64, 0.45);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s, box-shadow 0.12s, transform 0.08s;
+}
+
+.cwb-change-btn:not(:disabled):active {
+  transform: scale(0.92);
+  background: rgba(240, 192, 64, 0.28);
+  box-shadow: 0 0 14px rgba(240, 192, 64, 0.5);
+}
+
+.cwb-change-btn:not(:disabled):hover {
+  background: rgba(240, 192, 64, 0.18);
+  box-shadow: 0 0 8px rgba(240, 192, 64, 0.25);
+}
+
+.cwb-change-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.cwb-change-label {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.cwb-change-hint {
+  font-size: 0.48rem;
+  color: rgba(240, 192, 64, 0.7);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
 @media (max-height: 680px) {
-  .current-word-banner { padding: 4px 12px 5px; }
-  .cwb-word { font-size: 1.1rem; }
-  .cwb-hints { font-size: 0.6rem; }
+  .current-word-banner { padding: 4px 8px 4px 12px; }
+  .cwb-word { font-size: 1.05rem; }
+  .cwb-hints { font-size: 0.58rem; }
+  .cwb-change-btn { padding: 6px 10px; }
+  .cwb-change-label { font-size: 0.88rem; }
 }
 
 @media (max-height: 580px) {
-  .current-word-banner { padding: 3px 10px 4px; gap: 1px; }
-  .cwb-word { font-size: 0.95rem; }
+  .current-word-banner { padding: 3px 6px 3px 10px; gap: 1px; }
+  .cwb-word { font-size: 0.92rem; }
   .cwb-label { display: none; }
+  .cwb-change-hint { display: none; }
+  .cwb-change-btn { padding: 5px 8px; }
+  .cwb-change-label { font-size: 0.8rem; }
 }

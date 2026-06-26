@@ -604,15 +604,26 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
           className="current-word-banner"
           style={{ '--cwb-color': fallingBlock.color } as React.CSSProperties}
         >
-          <div className="cwb-label">いま落ちている言葉</div>
-          <div className="cwb-word">
-            {fallingBlock.word.slice(0, -1)}
-            <span className="cwb-last-char">{fallingBlock.word.slice(-1)}</span>
+          <div className="cwb-main">
+            <div className="cwb-label">いま落ちている言葉</div>
+            <div className="cwb-word">
+              {fallingBlock.word.slice(0, -1)}
+              <span className="cwb-last-char">{fallingBlock.word.slice(-1)}</span>
+            </div>
+            <div className="cwb-hints">
+              <span>はじまり：<span className="cwb-char">{getFirstKana(fallingBlock.word)}</span></span>
+              <span>おわり：<span className="cwb-char cwb-char-last">{getLastKana(fallingBlock.word)}</span></span>
+            </div>
           </div>
-          <div className="cwb-hints">
-            <span>はじまり：<span className="cwb-char">{getFirstKana(fallingBlock.word)}</span></span>
-            <span>おわり：<span className="cwb-char cwb-char-last">{getLastKana(fallingBlock.word)}</span></span>
-          </div>
+          <button
+            className="cwb-change-btn"
+            onClick={handleChangeWord}
+            disabled={isBlocked}
+            aria-label="言葉を変更"
+          >
+            <span className="cwb-change-label">変更</span>
+            <span className="cwb-change-hint">何度でもOK</span>
+          </button>
         </div>
       )}
 
@@ -651,7 +662,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
         {/* チュートリアルヒント */}
         {showTutorial && !state.isGameOver && (
           <div className="tutorial-hint">
-            左右で動かす &nbsp;／&nbsp; 下で落とす &nbsp;／&nbsp; 変更で入れ替え
+            左右で移動 &nbsp;／&nbsp; 下で落とす &nbsp;／&nbsp; バナーの変更ボタンで入れ替え
           </div>
         )}
       </div>
@@ -664,7 +675,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
           <span className="next-word-text">{nextWord}</span>
         </div>
 
-        {/* 操作ボタン */}
+        {/* 操作ボタン（左・落とす・右） */}
         <div className="control-buttons">
           {/* 左 */}
           <button
@@ -673,10 +684,11 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
             disabled={isBlocked}
             aria-label="左へ移動"
           >
-            ◀
+            <span className="ctrl-icon">◀</span>
+            <span className="ctrl-label">左</span>
           </button>
 
-          {/* 下（高速落下） */}
+          {/* 下（高速落下・長押し対応） */}
           <button
             className={['ctrl-btn ctrl-down', fastFall ? 'active' : ''].filter(Boolean).join(' ')}
             onPointerDown={handleDownStart}
@@ -686,7 +698,8 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
             disabled={isBlocked}
             aria-label="高速落下"
           >
-            ▼▼
+            <span className="ctrl-icon ctrl-icon-down">▼</span>
+            <span className="ctrl-label">落とす</span>
           </button>
 
           {/* 右 */}
@@ -696,17 +709,8 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
             disabled={isBlocked}
             aria-label="右へ移動"
           >
-            ▶
-          </button>
-
-          {/* 変更 */}
-          <button
-            className="ctrl-btn ctrl-change"
-            onClick={handleChangeWord}
-            disabled={isBlocked}
-            aria-label="言葉を変更"
-          >
-            変更
+            <span className="ctrl-icon">▶</span>
+            <span className="ctrl-label">右</span>
           </button>
         </div>
       </div>
