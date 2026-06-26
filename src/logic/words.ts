@@ -82,6 +82,29 @@ export function createWordQueue(): string[] {
   return arr;
 }
 
+// ─── かな文字 → アクセント色のマッピング ─────────────────────
+// ひらがな Unicode (あ=0x3042〜ん=0x3093) のコードポイントから
+// 色相0〜330°を均等割り付け。黄緑帯(45〜130°)は輝度を下げてコントラストを確保。
+const KANA_BASE = 0x3042; // あ
+const KANA_TOP  = 0x3093; // ん
+
+export function getKanaColor(ch: string): string {
+  // 小書き仮名は大書きに正規化
+  const NORM: Record<string, string> = {
+    'ぁ': 'あ', 'ぃ': 'い', 'ぅ': 'う', 'ぇ': 'え', 'ぉ': 'お',
+    'っ': 'つ', 'ゃ': 'や', 'ゅ': 'ゆ', 'ょ': 'よ', 'ゎ': 'わ',
+  };
+  const n = NORM[ch] ?? ch;
+  if (n === 'ん') return '#888'; // 「ん」は接続不可 → グレー
+  const code = n.charCodeAt(0);
+  if (code < KANA_BASE || code > KANA_TOP) return '#888'; // 非ひらがなフォールバック
+  const offset = code - KANA_BASE;
+  const hue = Math.round((offset / (KANA_TOP - KANA_BASE)) * 330);
+  // 黄色〜黄緑領域(45〜130°)は白文字が同化しないよう輝度を下げる
+  const lightness = hue > 45 && hue < 130 ? 42 : 56;
+  return `hsl(${hue}, 88%, ${lightness}%)`;
+}
+
 // ─── ブロックカラー（白文字で3:1以上のコントラスト比を確保した深みのある色）────
 const BLOCK_COLORS = [
   '#2470c0', // ディープブルー

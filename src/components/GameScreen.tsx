@@ -12,7 +12,7 @@ import {
   MAX_TIMED_SECONDS,
 } from '../logic/gameLogic';
 import { addRankingEntry } from '../logic/ranking';
-import { assignColor, pickSmartWord, pickNextWord, WORD_LIST } from '../logic/words';
+import { assignColor, pickSmartWord, pickNextWord, WORD_LIST, getKanaColor } from '../logic/words';
 import ScoreBar from './ScoreBar';
 import GameBoard from './GameBoard';
 import PauseModal from './PauseModal';
@@ -611,8 +611,24 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
               <span className="cwb-last-char">{fallingBlock.word.slice(-1)}</span>
             </div>
             <div className="cwb-hints">
-              <span>はじまり：<span className="cwb-char">{getFirstKana(fallingBlock.word)}</span></span>
-              <span>おわり：<span className="cwb-char cwb-char-last">{getLastKana(fallingBlock.word)}</span></span>
+              <span>
+                はじまり：
+                <span
+                  className="cwb-kana-dot"
+                  style={{ background: getKanaColor(getFirstKana(fallingBlock.word)) }}
+                  aria-hidden="true"
+                />
+                <span className="cwb-char">{getFirstKana(fallingBlock.word)}</span>
+              </span>
+              <span>
+                おわり：
+                <span
+                  className="cwb-kana-dot"
+                  style={{ background: getKanaColor(getLastKana(fallingBlock.word)) }}
+                  aria-hidden="true"
+                />
+                <span className="cwb-char cwb-char-last">{getLastKana(fallingBlock.word)}</span>
+              </span>
             </div>
           </div>
           <button

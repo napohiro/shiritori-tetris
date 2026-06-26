@@ -444,6 +444,21 @@ button:active { transform: scale(0.95); }
   pointer-events: none;
 }
 
+/* ─── かな文字色バー（ブロック左=先頭文字色 / 右=末尾文字色） ─── */
+.kana-bar {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  border-radius: 2px;
+  opacity: 0.92;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.kana-bar-left  { left: 2px; }
+.kana-bar-right { right: 2px; }
+
 .word-text {
   font-size: clamp(0.62rem, 2.6vw, 0.9rem);
   font-weight: 800;
@@ -457,10 +472,13 @@ button:active { transform: scale(0.95); }
   letter-spacing: -0.01em;
   text-align: center;
   line-height: 1.25;
-  padding: 1px;
+  /* kana-bar が左右各3pxを占めるため、テキストが重ならないよう余白を確保 */
+  padding: 1px 6px;
   white-space: normal;
   word-break: break-all;
   max-width: 100%;
+  position: relative;
+  z-index: 2;
 }
 
 .word-last-char {
@@ -1923,6 +1941,19 @@ button:active { transform: scale(0.95); }
   letter-spacing: 0.04em;
   display: flex;
   gap: 12px;
+  align-items: center;
+}
+
+/* バナー内のかな色丸 */
+.cwb-kana-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin: 0 3px 0 1px;
+  border: 1.5px solid rgba(255,255,255,0.35);
+  flex-shrink: 0;
 }
 
 .cwb-char {

@@ -1,5 +1,6 @@
 import { Board, COLS, ROWS } from '../logic/types';
 import { FallingBlock } from './GameScreen';
+import { getKanaColor, getFirstKana, getLastKana } from '../logic/words';
 
 interface Props {
   board: Board;
@@ -101,9 +102,19 @@ export default function GameBoard({ board, matchedCells, fallingBlock }: Props) 
                     className="word-block falling"
                     style={{ '--block-color': fallingBlock.color } as React.CSSProperties}
                   >
+                    <span
+                      className="kana-bar kana-bar-left"
+                      style={{ background: getKanaColor(getFirstKana(fallingBlock.word)) }}
+                      aria-hidden="true"
+                    />
                     <span className="word-text" style={{ fontSize: getWordFontSize(fallingBlock.word) }}>
                       {renderWordText(fallingBlock.word)}
                     </span>
+                    <span
+                      className="kana-bar kana-bar-right"
+                      style={{ background: getKanaColor(getLastKana(fallingBlock.word)) }}
+                      aria-hidden="true"
+                    />
                   </div>
                 )}
 
@@ -113,9 +124,19 @@ export default function GameBoard({ board, matchedCells, fallingBlock }: Props) 
                     className={['word-block', isMatched ? 'matched' : ''].filter(Boolean).join(' ')}
                     style={{ '--block-color': cell.color } as React.CSSProperties}
                   >
+                    <span
+                      className="kana-bar kana-bar-left"
+                      style={{ background: getKanaColor(getFirstKana(cell.word)) }}
+                      aria-hidden="true"
+                    />
                     <span className="word-text" style={{ fontSize: getWordFontSize(cell.word) }}>
                       {renderWordText(cell.word)}
                     </span>
+                    <span
+                      className="kana-bar kana-bar-right"
+                      style={{ background: getKanaColor(getLastKana(cell.word)) }}
+                      aria-hidden="true"
+                    />
                   </div>
                 )}
 
