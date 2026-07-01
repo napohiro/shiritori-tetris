@@ -125,6 +125,15 @@ export default function GameBoard({ board, matchedCells, fallingBlock }: Props) 
           gridTemplateRows: `repeat(${ROWS}, 1fr)`,
         }}
       >
+        {/*
+          各セルに gridColumn/gridRow を明示指定する。
+          横2ブロック連結ワード（下の spanning 要素）は grid-column: span 2 の
+          明示配置アイテムのため、CSS Grid の配置アルゴリズムは「明示配置を先に確定し、
+          残りのセルへ auto-placement を流し込む」順で処理される。
+          このセル群を auto-placement（配置指定なし）のままにすると、
+          明示配置された2ブロック要素の分だけ後続セルの自動配置がズレてしまい、
+          盤面全体の見た目が崩れる（着地位置のズレ・文字の分断表示の原因）。
+        */}
         {Array.from({ length: ROWS }).map((_, row) =>
           Array.from({ length: COLS }).map((_, col) => {
             const cell = board[row][col];
@@ -134,7 +143,11 @@ export default function GameBoard({ board, matchedCells, fallingBlock }: Props) 
             const isGroupCell = !!cell && cell.type === 'word' && !!cell.groupId;
 
             return (
-              <div key={key} className="board-cell">
+              <div
+                key={key}
+                className="board-cell"
+                style={{ gridColumn: col + 1, gridRow: row + 1 }}
+              >
                 {/* 落下中ブロック（1ブロック語のみ。2ブロック語は下の spanning 要素で描画） */}
                 {isFalling && fallingBlock && fallingBlock.width === 1 && (
                   <div

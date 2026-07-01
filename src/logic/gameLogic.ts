@@ -75,6 +75,24 @@ export function createInitialState(mode: GameMode = 'timed'): GameState {
 // =============================================
 
 /**
+ * 指定列に落とした場合の着地行を返す。
+ * その列の最も上にある障害物（一番小さい row）のひとつ上が着地行。
+ * 列が空なら ROWS-1（最下段）、row0 から埋まっている場合は -1（満杯）を返す。
+ *
+ * 横2ブロック連結ワードの重力処理により、1つの列の中に「上は空いているのに
+ * その下は埋まっている」せり出し（オーバーハング）が生じることがあるため、
+ * 単純に下から最初の空きセルを探す方式では、そのせり出しの下に空いた
+ * 奥まった空間（埋もれた隙間）を誤って着地位置として拾ってしまう。
+ * 必ず「上から見て最初にぶつかる障害物の直上」で止まるように計算する。
+ */
+function landingRowForColumn(board: Board, col: number): number {
+  for (let row = 0; row < ROWS; row++) {
+    if (board[row][col] !== null) return row - 1;
+  }
+  return ROWS - 1;
+}
+
+/**
  * 指定列に言葉ブロックを落とす。
  * width=2 のときは col と col+1 の2列に横連結ワードとして配置する。
  * 配置できない場合（列が満杯 / 2列目が盤外）は null を返す。
@@ -86,14 +104,8 @@ export function dropBlock(
   width: 1 | 2 = 1,
 ): { newBoard: Board; dropRow: number } | null {
   if (width === 1) {
-    let dropRow = -1;
-    for (let row = ROWS - 1; row >= 0; row--) {
-      if (board[row][col] === null) {
-        dropRow = row;
-        break;
-      }
-    }
-    if (dropRow === -1) return null;
+    const dropRow = landingRowForColumn(board, col);
+    if (dropRow < 0) return null;
 
     const newBoard = cloneBoard(board);
     const block: WordBlock = { id: makeId(), type: 'word', word, color: assignColor() };
@@ -104,14 +116,9 @@ export function dropBlock(
   const rightCol = col + 1;
   if (rightCol >= COLS) return null;
 
-  let dropRow = -1;
-  for (let row = ROWS - 1; row >= 0; row--) {
-    if (board[row][col] === null && board[row][rightCol] === null) {
-      dropRow = row;
-      break;
-    }
-  }
-  if (dropRow === -1) return null;
+  // 横2ブロック語は左右どちらか片方だけが先にぶつかる位置でユニット全体が止まる
+  const dropRow = Math.min(landingRowForColumn(board, col), landingRowForColumn(board, rightCol));
+  if (dropRow < 0) return null;
 
   const newBoard = cloneBoard(board);
   const groupId = makeId();
@@ -292,14 +299,8 @@ export function trySpawnObstacle(board: Board): Board | null {
   if (available.length === 0) return null;
 
   const col = available[Math.floor(Math.random() * available.length)];
-  let dropRow = -1;
-  for (let row = ROWS - 1; row >= 0; row--) {
-    if (board[row][col] === null) {
-      dropRow = row;
-      break;
-    }
-  }
-  if (dropRow === -1) return null;
+  const dropRow = landingRowForColumn(board, col);
+  if (dropRow < 0) return null;
 
   const newBoard = cloneBoard(board);
   newBoard[dropRow][col] = createObstacleBlock();
