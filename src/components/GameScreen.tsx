@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Board, COLS, GameState, ROWS } from '../logic/types';
+import { Board, COLS, GameMode, GameState, ROWS } from '../logic/types';
 import {
   processTurn,
   isGameOver as checkGameOver,
@@ -12,7 +12,15 @@ import {
   MAX_TIMED_SECONDS,
 } from '../logic/gameLogic';
 import { addRankingEntry } from '../logic/ranking';
-import { assignColor, pickSmartWord, pickNextWord, WORD_LIST, getKanaColor } from '../logic/words';
+import {
+  assignColor,
+  pickSmartWord,
+  pickNextWord,
+  SHORT_WORDS,
+  MEDIUM_SHORT_WORDS,
+  LONG_WORDS,
+  getKanaColor,
+} from '../logic/words';
 import ScoreBar from './ScoreBar';
 import GameBoard from './GameBoard';
 import PauseModal from './PauseModal';
@@ -28,6 +36,12 @@ export interface FallingBlock {
   row: number;
   word: string;
   color: string;
+  width: 1 | 2;
+}
+
+interface SpawnWord {
+  word: string;
+  width: 1 | 2;
 }
 
 interface Props {
@@ -66,6 +80,76 @@ function getChainLabel(matchCount: number): string {
   return 'CHAIN!';
 }
 
+// ─── モード別・幅別の単語選択 ───
+const LONG_WORD_RATIO = 0.4; // 中級モードで横2ブロック語が出現する割合（約40%）
+
+function shortPool(mode: GameMode): string[] {
+  return mode === 'timed-medium' ? MEDIUM_SHORT_WORDS : SHORT_WORDS;
+}
+
+/** モードに応じて次に出す言葉と幅（1 or 2）を選ぶ。 */
+function pickSpawnWord(board: Board, mode: GameMode, exclude: string | null): SpawnWord {
+  if (mode === 'timed-medium' && Math.random() < LONG_WORD_RATIO) {
+    return { word: pickSmartWord(board, exclude, LONG_WORDS), width: 2 };
+  }
+  return { word: pickSmartWord(board, exclude, shortPool(mode)), width: 1 };
+}
+
+/** NEXT用：直前の単語につながりやすい候補を優先しつつ、モードに応じた幅を選ぶ。 */
+function pickSpawnNextWord(currentWord: string, board: Board, mode: GameMode, exclude: string | null): SpawnWord {
+  if (mode === 'timed-medium' && Math.random() < LONG_WORD_RATIO) {
+    return { word: pickNextWord(currentWord, board, exclude, LONG_WORDS), width: 2 };
+  }
+  return { word: pickNextWord(currentWord, board, exclude, shortPool(mode)), width: 1 };
+}
+
+/** 現在ワードバナー・NEXT表示で、文字数によらず1行に収まるフォントサイズを返す。 */
+function getBannerFontSize(word: string): string {
+  const len = word.length;
+  if (len <= 2) return 'clamp(1.18rem, 5.2vw, 1.55rem)';
+  if (len <= 3) return 'clamp(0.98rem, 4.4vw, 1.3rem)';
+  if (len <= 4) return 'clamp(0.82rem, 3.8vw, 1.08rem)';
+  return 'clamp(0.7rem, 3.2vw, 0.92rem)';
+}
+
+function getNextWordFontSize(word: string): string {
+  const len = word.length;
+  if (len <= 2) return 'clamp(0.95rem, 4.2vw, 1.18rem)';
+  if (len <= 3) return 'clamp(0.82rem, 3.6vw, 1.0rem)';
+  if (len <= 4) return 'clamp(0.72rem, 3.1vw, 0.88rem)';
+  return 'clamp(0.64rem, 2.7vw, 0.78rem)';
+}
+
+// ─── スポーン列探索 ───
+/** 1ブロック語：中央から左右に広げて空き列を探す。 */
+function findSingleSpawnCol(board: Board): number {
+  const center = Math.floor(COLS / 2);
+  for (let offset = 0; offset < COLS; offset++) {
+    const left = center - offset;
+    const right = center + offset;
+    if (left >= 0 && board[0][left] === null) return left;
+    if (right < COLS && board[0][right] === null) return right;
+  }
+  return -1;
+}
+
+/** 横2ブロック語：隣接2列とも空いている、最も中央に近い開始列を探す。 */
+function findPairSpawnCol(board: Board): number {
+  const center = Math.floor(COLS / 2);
+  let best = -1;
+  let bestDist = Infinity;
+  for (let col = 0; col <= COLS - 2; col++) {
+    if (board[0][col] === null && board[0][col + 1] === null) {
+      const dist = Math.abs(col + 0.5 - center);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = col;
+      }
+    }
+  }
+  return best;
+}
+
 // ─── 現在落下中の言葉の最初・最後の文字を取得 ───
 const SMALL_TO_LARGE: Record<string, string> = {
   'ぁ': 'あ', 'ぃ': 'い', 'ぅ': 'う', 'ぇ': 'え', 'ぉ': 'お',
@@ -89,8 +173,8 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   const fallingBlockRef = useRef<FallingBlock | null>(null);
 
   // ─── 次の言葉 ───
-  const [nextWord, setNextWord] = useState<string>('');
-  const nextWordRef = useRef<string>('');
+  const [nextWord, setNextWord] = useState<SpawnWord | null>(null);
+  const nextWordRef = useRef<SpawnWord | null>(null);
 
   // ─── 高速落下 ───
   const [fastFall, setFastFall] = useState(false);
@@ -139,20 +223,17 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
       return;
     }
 
-    const word = nextWordRef.current || pickSmartWord(boardAfterChains, null, WORD_LIST);
-    // NEXTワード: 現在の単語末尾につながりやすい候補を優先
-    const newNext = pickNextWord(word, boardAfterChains, word, WORD_LIST);
-    nextWordRef.current = newNext;
-    setNextWord(newNext);
+    const mode = stateRef.current.mode;
+    let spawn: SpawnWord = nextWordRef.current ?? pickSpawnWord(boardAfterChains, mode, null);
 
-    // スポーン列：中央から左右に広げて空き列を探す
-    const center = Math.floor(COLS / 2);
-    let spawnCol = -1;
-    for (let offset = 0; offset < COLS; offset++) {
-      const left = center - offset;
-      const right = center + offset;
-      if (left >= 0 && boardAfterChains[0][left] === null) { spawnCol = left; break; }
-      if (right < COLS && boardAfterChains[0][right] === null) { spawnCol = right; break; }
+    let spawnCol = spawn.width === 2
+      ? findPairSpawnCol(boardAfterChains)
+      : findSingleSpawnCol(boardAfterChains);
+
+    // 横2ブロック語を置く隙間が無ければ、1ブロック語にフォールバック
+    if (spawnCol === -1 && spawn.width === 2) {
+      spawn = { word: pickSmartWord(boardAfterChains, spawn.word, shortPool(mode)), width: 1 };
+      spawnCol = findSingleSpawnCol(boardAfterChains);
     }
 
     if (spawnCol === -1) {
@@ -161,7 +242,18 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
       return;
     }
 
-    const newBlock: FallingBlock = { col: spawnCol, row: 0, word, color: assignColor() };
+    // NEXTワード: 現在の単語末尾につながりやすい候補を優先
+    const newNext = pickSpawnNextWord(spawn.word, boardAfterChains, mode, spawn.word);
+    nextWordRef.current = newNext;
+    setNextWord(newNext);
+
+    const newBlock: FallingBlock = {
+      col: spawnCol,
+      row: 0,
+      word: spawn.word,
+      color: assignColor(),
+      width: spawn.width,
+    };
     setFallingBlock(newBlock);
     fallingBlockRef.current = newBlock;
   }, [setState]);
@@ -173,14 +265,25 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
 
     // 最初の2語をスマート選択（盤面は空なのでランダムに近い）
     const emptyBoard = createEmptyBoard();
-    const firstWord = pickSmartWord(emptyBoard, null, WORD_LIST);
-    const secondWord = pickNextWord(firstWord, emptyBoard, firstWord, WORD_LIST);
-    nextWordRef.current = secondWord;
-    setNextWord(secondWord);
+    const mode = stateRef.current.mode;
+    let first = pickSpawnWord(emptyBoard, mode, null);
+    let startCol = first.width === 2 ? findPairSpawnCol(emptyBoard) : findSingleSpawnCol(emptyBoard);
+    if (startCol === -1 && first.width === 2) {
+      first = { word: pickSmartWord(emptyBoard, first.word, shortPool(mode)), width: 1 };
+      startCol = findSingleSpawnCol(emptyBoard);
+    }
+    const second = pickSpawnNextWord(first.word, emptyBoard, mode, first.word);
+    nextWordRef.current = second;
+    setNextWord(second);
 
     // 1語目でブロックをスポーン
-    const startCol = Math.floor(COLS / 2);
-    const newBlock: FallingBlock = { col: startCol, row: 0, word: firstWord, color: assignColor() };
+    const newBlock: FallingBlock = {
+      col: startCol,
+      row: 0,
+      word: first.word,
+      color: assignColor(),
+      width: first.width,
+    };
     setFallingBlock(newBlock);
     fallingBlockRef.current = newBlock;
 
@@ -208,7 +311,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
       wordsCleared: state.wordsCleared,
       obstaclesDestroyed: state.obstaclesDestroyed,
       wordChanges: state.wordChanges,
-    });
+    }, state.mode);
     setRankPosition(rank);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.isGameOver]);
@@ -246,7 +349,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     fallingBlockRef.current = null;
 
     const currentBoard = boardRef.current;
-    const result = processTurn(currentBoard, fb.col, fb.word);
+    const result = processTurn(currentBoard, fb.col, fb.word, fb.width);
 
     if (!result) {
       // 列が満杯（通常起こらないが安全策）
@@ -411,8 +514,11 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
 
       const board = boardRef.current;
       const nextRow = fb.row + 1;
+      const canFall = nextRow < ROWS
+        && board[nextRow][fb.col] === null
+        && (fb.width === 1 || board[nextRow][fb.col + 1] === null);
 
-      if (nextRow < ROWS && board[nextRow][fb.col] === null) {
+      if (canFall) {
         const updated = { ...fb, row: nextRow };
         setFallingBlock(updated);
         fallingBlockRef.current = updated;
@@ -433,6 +539,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     const fb = fallingBlockRef.current;
     if (!fb) return;
 
+    // 幅2の場合も「新しく入る側」の列だけ判定すればよい（もう片方は既に自分が占めていた列）
     const newCol = fb.col - 1;
     if (newCol < 0) return;
     if (boardRef.current[fb.row][newCol] !== null) return;
@@ -448,8 +555,9 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     if (!fb) return;
 
     const newCol = fb.col + 1;
-    if (newCol >= COLS) return;
-    if (boardRef.current[fb.row][newCol] !== null) return;
+    const newRightEdge = newCol + (fb.width - 1);
+    if (newRightEdge >= COLS) return;
+    if (boardRef.current[fb.row][newRightEdge] !== null) return;
 
     const updated = { ...fb, col: newCol };
     setFallingBlock(updated);
@@ -472,8 +580,9 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     const fb = fallingBlockRef.current;
     if (!fb) return;
 
-    // 盤面につながりやすい単語を優先して選ぶ
-    const newWord = pickSmartWord(boardRef.current, fb.word, WORD_LIST);
+    // 盤面につながりやすい単語を優先して選ぶ（幅・位置は変えない＝回転なし）
+    const pool = fb.width === 2 ? LONG_WORDS : shortPool(stateRef.current.mode);
+    const newWord = pickSmartWord(boardRef.current, fb.word, pool);
 
     const updated = { ...fb, word: newWord };
     setFallingBlock(updated);
@@ -605,8 +714,11 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
           style={{ '--cwb-color': fallingBlock.color } as React.CSSProperties}
         >
           <div className="cwb-main">
-            <div className="cwb-label">いま落ちている言葉</div>
-            <div className="cwb-word">
+            <div className="cwb-label">
+              いま落ちている言葉
+              {fallingBlock.width === 2 && <span className="cwb-badge">2連結</span>}
+            </div>
+            <div className="cwb-word" style={{ fontSize: getBannerFontSize(fallingBlock.word) }}>
               {fallingBlock.word.slice(0, -1)}
               <span className="cwb-last-char">{fallingBlock.word.slice(-1)}</span>
             </div>
@@ -688,7 +800,12 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
         {/* NEXT表示 */}
         <div className="next-word-row">
           <span className="next-label">NEXT</span>
-          <span className="next-word-text">{nextWord}</span>
+          {nextWord && (
+            <span className="next-word-text" style={{ fontSize: getNextWordFontSize(nextWord.word) }}>
+              {nextWord.word}
+            </span>
+          )}
+          {nextWord?.width === 2 && <span className="next-word-badge">2連結</span>}
         </div>
 
         {/* 操作ボタン（左・落とす・右） */}

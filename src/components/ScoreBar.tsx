@@ -20,7 +20,7 @@ export default function ScoreBar({ score, bestScore, combo, maxCombo, mode, time
       </div>
 
       <div className="score-item center">
-        {mode === 'timed' ? (
+        {mode === 'timed' || mode === 'timed-medium' ? (
           <TimerDisplay
             timeRemaining={timeRemaining}
             mode={mode}

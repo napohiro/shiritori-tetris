@@ -1,3 +1,5 @@
+import { GameMode } from './types';
+
 // =============================================
 // 型定義
 // =============================================
@@ -17,7 +19,9 @@ export interface RankingEntry {
 
 export const MAX_RANKING = 10;
 
-const RANKING_KEY = 'shiritori-tetris-ranking-3min';
+function rankingKey(mode: GameMode): string {
+  return mode === 'timed-medium' ? 'shiritori-tetris-ranking-3min-medium' : 'shiritori-tetris-ranking-3min';
+}
 
 // =============================================
 // バリデーション
@@ -39,9 +43,9 @@ function isValidEntry(v: unknown): v is Omit<RankingEntry, 'wordChanges'> & { wo
 // 読み書き
 // =============================================
 
-export function loadRanking(): RankingEntry[] {
+export function loadRanking(mode: GameMode = 'timed'): RankingEntry[] {
   try {
-    const raw = localStorage.getItem(RANKING_KEY);
+    const raw = localStorage.getItem(rankingKey(mode));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -54,9 +58,9 @@ export function loadRanking(): RankingEntry[] {
   }
 }
 
-function saveRanking(entries: RankingEntry[]): void {
+function saveRanking(entries: RankingEntry[], mode: GameMode): void {
   try {
-    localStorage.setItem(RANKING_KEY, JSON.stringify(entries));
+    localStorage.setItem(rankingKey(mode), JSON.stringify(entries));
   } catch { /* StorageError — 無視 */ }
 }
 
@@ -77,6 +81,7 @@ export function addRankingEntry(
     obstaclesDestroyed: number;
     wordChanges: number;
   },
+  mode: GameMode = 'timed',
 ): number | null {
   if (data.score <= 0) return null;
 
@@ -85,7 +90,7 @@ export function addRankingEntry(
 
   const newEntry: RankingEntry = { ...data, date };
 
-  const existing = loadRanking();
+  const existing = loadRanking(mode);
   const combined = [...existing, newEntry].sort((a, b) => b.score - a.score);
 
   // 新エントリの順位（参照同一性で探す）
@@ -93,7 +98,7 @@ export function addRankingEntry(
   const rank = rankIndex >= 0 && rankIndex < MAX_RANKING ? rankIndex + 1 : null;
 
   // 上位10件だけ保存
-  saveRanking(combined.slice(0, MAX_RANKING));
+  saveRanking(combined.slice(0, MAX_RANKING), mode);
 
   return rank;
 }

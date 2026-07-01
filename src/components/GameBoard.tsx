@@ -70,12 +70,50 @@ function renderWordText(word: string) {
   );
 }
 
+/** 横2ブロック連結ワード用：文字数によらず必ず1行で表示する。 */
+function getTwoBlockFontSize(word: string): string {
+  const len = word.length;
+  if (len <= 4) return 'clamp(0.72rem, 3.4vw, 1.05rem)';
+  return 'clamp(0.62rem, 2.9vw, 0.9rem)';
+}
+
+function renderTwoBlockText(word: string) {
+  return (
+    <>
+      {word.slice(0, -1)}
+      <span className="word-last-char">{word.slice(-1)}</span>
+    </>
+  );
+}
+
 export default function GameBoard({ board, matchedCells, fallingBlock }: Props) {
   const matchedSet = new Set(matchedCells.map(([r, c]) => `${r},${c}`));
   const chainEdges = matchedCells.length > 0 ? getChainEdges(matchedCells) : [];
 
-  // 落下ブロックが存在するセル
-  const fbKey = fallingBlock ? `${fallingBlock.row},${fallingBlock.col}` : '';
+  // 落下ブロックが存在するセル（幅2の場合は両セルとも個別描画をスキップする）
+  const fbCols = fallingBlock
+    ? (fallingBlock.width === 2 ? [fallingBlock.col, fallingBlock.col + 1] : [fallingBlock.col])
+    : [];
+  const isFallingCell = (row: number, col: number) =>
+    !!fallingBlock && fallingBlock.row === row && fbCols.includes(col);
+
+  // 着地済みの横2ブロック連結ワードを重複なく収集（part===0のセルを起点にする）
+  const landedGroups: { row: number; col: number; word: string; color: string; matched: boolean }[] = [];
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const cell = board[row][col];
+      if (cell && cell.type === 'word' && cell.groupId && cell.part === 0) {
+        const matched = matchedSet.has(`${row},${col}`) && matchedSet.has(`${row},${col + 1}`);
+        landedGroups.push({
+          row,
+          col,
+          word: cell.word,
+          color: cell.color,
+          matched,
+        });
+      }
+    }
+  }
 
   return (
     <div className="game-board-wrapper">
@@ -92,12 +130,13 @@ export default function GameBoard({ board, matchedCells, fallingBlock }: Props) 
             const cell = board[row][col];
             const key = `${row},${col}`;
             const isMatched = matchedSet.has(key);
-            const isFalling = fbKey === key;
+            const isFalling = isFallingCell(row, col);
+            const isGroupCell = !!cell && cell.type === 'word' && !!cell.groupId;
 
             return (
               <div key={key} className="board-cell">
-                {/* 落下中ブロック（盤面ブロックの上に描画） */}
-                {isFalling && fallingBlock && (
+                {/* 落下中ブロック（1ブロック語のみ。2ブロック語は下の spanning 要素で描画） */}
+                {isFalling && fallingBlock && fallingBlock.width === 1 && (
                   <div
                     className="word-block falling"
                     style={{ '--block-color': fallingBlock.color } as React.CSSProperties}
@@ -118,8 +157,8 @@ export default function GameBoard({ board, matchedCells, fallingBlock }: Props) 
                   </div>
                 )}
 
-                {/* 着地済みブロック（落下中は非表示） */}
-                {!isFalling && cell && cell.type === 'word' && (
+                {/* 着地済みブロック（落下中・グループワードは個別セル描画をスキップ） */}
+                {!isFalling && !isGroupCell && cell && cell.type === 'word' && (
                   <div
                     className={['word-block', isMatched ? 'matched' : ''].filter(Boolean).join(' ')}
                     style={{ '--block-color': cell.color } as React.CSSProperties}
@@ -156,6 +195,59 @@ export default function GameBoard({ board, matchedCells, fallingBlock }: Props) 
               </div>
             );
           })
+        )}
+
+        {/* 横2ブロック連結ワード（着地済み）：継ぎ目なしの1要素として2列にまたがせる */}
+        {landedGroups.map(g => (
+          <div
+            key={`group-${g.row}-${g.col}`}
+            className={['word-block two-block', g.matched ? 'matched' : ''].filter(Boolean).join(' ')}
+            style={{
+              '--block-color': g.color,
+              gridColumn: `${g.col + 1} / span 2`,
+              gridRow: `${g.row + 1} / span 1`,
+            } as React.CSSProperties}
+          >
+            <span
+              className="kana-bar kana-bar-left"
+              style={{ background: getKanaColor(getFirstKana(g.word)) }}
+              aria-hidden="true"
+            />
+            <span className="word-text" style={{ fontSize: getTwoBlockFontSize(g.word) }}>
+              {renderTwoBlockText(g.word)}
+            </span>
+            <span
+              className="kana-bar kana-bar-right"
+              style={{ background: getKanaColor(getLastKana(g.word)) }}
+              aria-hidden="true"
+            />
+          </div>
+        ))}
+
+        {/* 横2ブロック連結ワード（落下中） */}
+        {fallingBlock && fallingBlock.width === 2 && (
+          <div
+            className="word-block two-block falling"
+            style={{
+              '--block-color': fallingBlock.color,
+              gridColumn: `${fallingBlock.col + 1} / span 2`,
+              gridRow: `${fallingBlock.row + 1} / span 1`,
+            } as React.CSSProperties}
+          >
+            <span
+              className="kana-bar kana-bar-left"
+              style={{ background: getKanaColor(getFirstKana(fallingBlock.word)) }}
+              aria-hidden="true"
+            />
+            <span className="word-text" style={{ fontSize: getTwoBlockFontSize(fallingBlock.word) }}>
+              {renderTwoBlockText(fallingBlock.word)}
+            </span>
+            <span
+              className="kana-bar kana-bar-right"
+              style={{ background: getKanaColor(getLastKana(fallingBlock.word)) }}
+              aria-hidden="true"
+            />
+          </div>
         )}
       </div>
 

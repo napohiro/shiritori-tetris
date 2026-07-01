@@ -17,19 +17,21 @@ import { findMatchedPositions } from './shiritori';
 // LocalStorage
 // =============================================
 
-const BEST_SCORE_KEY = 'shiritori-tetris-best-3min';
+function bestScoreKey(mode: GameMode): string {
+  return mode === 'timed-medium' ? 'shiritori-tetris-best-3min-medium' : 'shiritori-tetris-best-3min';
+}
 
-export function loadBestScore(_mode: GameMode = 'timed'): number {
+export function loadBestScore(mode: GameMode = 'timed'): number {
   try {
-    return parseInt(localStorage.getItem(BEST_SCORE_KEY) ?? '0', 10) || 0;
+    return parseInt(localStorage.getItem(bestScoreKey(mode)) ?? '0', 10) || 0;
   } catch {
     return 0;
   }
 }
 
-export function saveBestScore(score: number, _mode: GameMode = 'timed'): void {
+export function saveBestScore(score: number, mode: GameMode = 'timed'): void {
   try {
-    localStorage.setItem(BEST_SCORE_KEY, String(score));
+    localStorage.setItem(bestScoreKey(mode), String(score));
   } catch { /* StorageError — ignore */ }
 }
 
@@ -72,15 +74,39 @@ export function createInitialState(mode: GameMode = 'timed'): GameState {
 // ゲームロジック
 // =============================================
 
-/** 指定列に言葉ブロックを落とす。列が満杯なら null を返す。 */
+/**
+ * 指定列に言葉ブロックを落とす。
+ * width=2 のときは col と col+1 の2列に横連結ワードとして配置する。
+ * 配置できない場合（列が満杯 / 2列目が盤外）は null を返す。
+ */
 export function dropBlock(
   board: Board,
   col: number,
   word: string,
+  width: 1 | 2 = 1,
 ): { newBoard: Board; dropRow: number } | null {
+  if (width === 1) {
+    let dropRow = -1;
+    for (let row = ROWS - 1; row >= 0; row--) {
+      if (board[row][col] === null) {
+        dropRow = row;
+        break;
+      }
+    }
+    if (dropRow === -1) return null;
+
+    const newBoard = cloneBoard(board);
+    const block: WordBlock = { id: makeId(), type: 'word', word, color: assignColor() };
+    newBoard[dropRow][col] = block;
+    return { newBoard, dropRow };
+  }
+
+  const rightCol = col + 1;
+  if (rightCol >= COLS) return null;
+
   let dropRow = -1;
   for (let row = ROWS - 1; row >= 0; row--) {
-    if (board[row][col] === null) {
+    if (board[row][col] === null && board[row][rightCol] === null) {
       dropRow = row;
       break;
     }
@@ -88,8 +114,12 @@ export function dropBlock(
   if (dropRow === -1) return null;
 
   const newBoard = cloneBoard(board);
-  const block: WordBlock = { id: makeId(), type: 'word', word, color: assignColor() };
-  newBoard[dropRow][col] = block;
+  const groupId = makeId();
+  const color = assignColor();
+  const left: WordBlock = { id: makeId(), type: 'word', word, color, groupId, part: 0 };
+  const right: WordBlock = { id: makeId(), type: 'word', word, color, groupId, part: 1 };
+  newBoard[dropRow][col] = left;
+  newBoard[dropRow][rightCol] = right;
   return { newBoard, dropRow };
 }
 
@@ -102,22 +132,50 @@ export function removeMatched(board: Board, matched: [number, number][]): Board 
   return newBoard;
 }
 
-/** 重力処理：各列のブロックを下へ詰める。 */
+/**
+ * 重力処理：各列のブロックを下へ詰める。
+ * 横2ブロック連結ワード（同じ groupId を持つ2セル）は必ず同じ行を保ったまま、
+ * 2セル同時に1段ずつ沈める（片方だけ落ちる・止まることはない）。
+ * 変化がなくなるまで反復するため、グループが無い盤面では従来の列コンパクションと同じ結果になる。
+ */
 export function applyGravity(board: Board): Board {
-  const newBoard = cloneBoard(board);
-  for (let col = 0; col < COLS; col++) {
-    const blocks: Cell[] = [];
-    for (let row = ROWS - 1; row >= 0; row--) {
-      if (newBoard[row][col] !== null) {
-        blocks.push(newBoard[row][col]);
-        newBoard[row][col] = null;
+  const b = cloneBoard(board);
+  let moved = true;
+  while (moved) {
+    moved = false;
+    const visited = new Set<string>();
+    for (let row = ROWS - 2; row >= 0; row--) {
+      for (let col = 0; col < COLS; col++) {
+        const key = `${row},${col}`;
+        if (visited.has(key)) continue;
+        const cell = b[row][col];
+        if (!cell) continue;
+
+        if (cell.type === 'word' && cell.groupId) {
+          const partnerCol = cell.part === 0 ? col + 1 : col - 1;
+          visited.add(key);
+          if (partnerCol < 0 || partnerCol >= COLS) continue; // 安全策（本来起こらない）
+          visited.add(`${row},${partnerCol}`);
+          const partner = b[row][partnerCol];
+          if (b[row + 1][col] === null && b[row + 1][partnerCol] === null) {
+            b[row + 1][col] = cell;
+            b[row + 1][partnerCol] = partner;
+            b[row][col] = null;
+            b[row][partnerCol] = null;
+            moved = true;
+          }
+        } else {
+          visited.add(key);
+          if (b[row + 1][col] === null) {
+            b[row + 1][col] = cell;
+            b[row][col] = null;
+            moved = true;
+          }
+        }
       }
     }
-    for (let i = 0; i < blocks.length; i++) {
-      newBoard[ROWS - 1 - i][col] = blocks[i];
-    }
   }
-  return newBoard;
+  return b;
 }
 
 /** 全列の最上段がすべて埋まっていたらゲームオーバー。 */
@@ -288,8 +346,8 @@ export interface TurnResult {
 }
 
 /** 配置→マッチ→消去→重力→連鎖をまとめて処理し、各ステップを返す。 */
-export function processTurn(board: Board, col: number, word: string): TurnResult | null {
-  const dropResult = dropBlock(board, col, word);
+export function processTurn(board: Board, col: number, word: string, width: 1 | 2 = 1): TurnResult | null {
+  const dropResult = dropBlock(board, col, word, width);
   if (!dropResult) return null;
 
   let current = dropResult.newBoard;

@@ -547,6 +547,18 @@ button:active { transform: scale(0.95); }
   z-index: 2;
 }
 
+/* ─── 横2ブロック連結ワード：2列にまたがる1つのブロックとして継ぎ目なく表示 ─── */
+.word-block.two-block {
+  /* CSS Grid の grid-column: span 2 で2セル分をまたぐため、
+     グリッド自体のトラックサイズ（盤面サイズ）には一切影響しない */
+  z-index: 1;
+}
+
+.word-block.two-block .word-text {
+  white-space: nowrap;
+  word-break: normal;
+}
+
 .word-last-char {
   color: #ffd740;
   /* 最後の文字も強いアウトラインで任意の背景に対して視認性を確保 */
@@ -914,6 +926,22 @@ button:active { transform: scale(0.95); }
 .howto-rules p {
   font-size: 0.78rem;
   color: #ff9080;
+}
+
+.howto-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: rgba(56, 212, 240, 0.08);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid rgba(56, 212, 240, 0.5);
+}
+
+.howto-modes p {
+  font-size: 0.78rem;
+  color: var(--text-main);
+  line-height: 1.5;
 }
 
 /* =============================================
@@ -1737,6 +1765,7 @@ button:active { transform: scale(0.95); }
 
 /* NEXT表示行 */
 .next-word-row {
+  height: 30px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1744,6 +1773,7 @@ button:active { transform: scale(0.95); }
   background: rgba(255,255,255,0.04);
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.08);
+  overflow: hidden;
 }
 
 .next-label {
@@ -1755,11 +1785,24 @@ button:active { transform: scale(0.95); }
 }
 
 .next-word-text {
-  font-size: clamp(0.95rem, 4.2vw, 1.18rem);
+  flex: 1;
   font-weight: 800;
   color: var(--accent-cyan);
   letter-spacing: 0.04em;
-  word-break: break-all;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.next-word-badge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(56, 212, 240, 0.18);
+  border: 1px solid rgba(56, 212, 240, 0.45);
+  color: var(--accent-cyan);
+  font-size: 0.55rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 /* 操作ボタングリッド（◀ ▼ ▶ の3ボタン） */
@@ -1864,18 +1907,37 @@ button:active { transform: scale(0.95); }
 }
 
 /* =============================================
-   TopScreen — モードカード（3分チャレンジ用）
+   TopScreen — モードカード（3分チャレンジ／3分チャレンジ【中】）
    ============================================= */
+.mode-cards {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .mode-card {
   width: 100%;
   display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-direction: column;
+  gap: 10px;
   padding: 14px 18px;
   background: rgba(56, 212, 240, 0.08);
   border: 1.5px solid rgba(56, 212, 240, 0.3);
   border-radius: var(--radius-lg);
   box-shadow: 0 0 20px rgba(56, 212, 240, 0.12);
+}
+
+.mode-card.medium {
+  background: rgba(240, 192, 64, 0.08);
+  border-color: rgba(240, 192, 64, 0.35);
+  box-shadow: 0 0 20px rgba(240, 192, 64, 0.12);
+}
+
+.mode-card-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .mode-card-icon {
@@ -1888,6 +1950,7 @@ button:active { transform: scale(0.95); }
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .mode-card-name {
@@ -1903,17 +1966,63 @@ button:active { transform: scale(0.95); }
   line-height: 1.4;
 }
 
+.mode-card.medium .mode-card-desc {
+  color: rgba(240, 192, 64, 0.85);
+}
+
+.mode-card-start {
+  padding: 9px;
+  border-radius: var(--radius-md);
+  background: rgba(56, 212, 240, 0.16);
+  border: 1.5px solid rgba(56, 212, 240, 0.5);
+  color: var(--text-bright);
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.mode-card-start:hover {
+  background: rgba(56, 212, 240, 0.28);
+}
+
+.mode-card.medium .mode-card-start {
+  background: rgba(240, 192, 64, 0.16);
+  border-color: rgba(240, 192, 64, 0.55);
+}
+
+.mode-card.medium .mode-card-start:hover {
+  background: rgba(240, 192, 64, 0.3);
+}
+
 /* =============================================
-   RankingModal — モードラベル
+   RankingModal — モード切替タブ
    ============================================= */
-.ranking-mode-label {
-  text-align: center;
-  font-size: 0.76rem;
-  font-weight: 700;
-  color: var(--accent-cyan);
-  letter-spacing: 0.1em;
+.ranking-mode-tabs {
+  display: flex;
+  gap: 6px;
   margin: 6px 0 12px;
-  opacity: 0.85;
+}
+
+.ranking-mode-tab {
+  flex: 1;
+  padding: 7px 4px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.ranking-mode-tab.active {
+  background: rgba(56, 212, 240, 0.18);
+  border-color: rgba(56, 212, 240, 0.55);
+  color: var(--accent-cyan);
 }
 
 /* =============================================
@@ -1932,8 +2041,7 @@ button:active { transform: scale(0.95); }
   .ctrl-icon { font-size: 1.2rem; }
   .ctrl-icon-down { font-size: 1.5rem; }
   .ctrl-label { font-size: 0.55rem; }
-  .next-word-row { padding: 3px 6px; }
-  .next-word-text { font-size: 0.88rem; }
+  .next-word-row { height: 26px; padding: 3px 6px; }
 }
 
 @media (max-height: 580px) {
@@ -1949,6 +2057,8 @@ button:active { transform: scale(0.95); }
    ============================================= */
 .current-word-banner {
   flex-shrink: 0;
+  height: 68px;
+  overflow: hidden;
   padding: 6px 10px 6px 14px;
   background: rgba(12, 22, 46, 0.92);
   border-top: 1.5px solid var(--cwb-color, var(--accent-cyan));
@@ -1968,6 +2078,9 @@ button:active { transform: scale(0.95); }
 }
 
 .cwb-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 0.52rem;
   font-weight: 700;
   color: var(--text-dim);
@@ -1975,13 +2088,29 @@ button:active { transform: scale(0.95); }
   text-transform: uppercase;
 }
 
+.cwb-badge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(56, 212, 240, 0.22);
+  border: 1px solid rgba(56, 212, 240, 0.5);
+  color: var(--accent-cyan);
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  line-height: 1.4;
+}
+
 .cwb-word {
-  font-size: clamp(1.18rem, 5.2vw, 1.55rem);
+  /* 単語の長さに応じてフォントサイズを算出（GameScreen の getBannerFontSize）ため、
+     ここでは折り返さず1行固定にすることでバナーの高さを一定に保つ */
   font-weight: 900;
   color: var(--text-bright);
   letter-spacing: 0.04em;
   line-height: 1.2;
-  word-break: break-all;
+  white-space: nowrap;
+  overflow: hidden;
   text-shadow: 0 1px 8px rgba(0,0,0,0.5);
 }
 
@@ -2083,16 +2212,14 @@ button:active { transform: scale(0.95); }
 }
 
 @media (max-height: 680px) {
-  .current-word-banner { padding: 4px 8px 4px 12px; }
-  .cwb-word { font-size: 1.05rem; }
+  .current-word-banner { height: 60px; padding: 4px 8px 4px 12px; }
   .cwb-hints { font-size: 0.58rem; }
   .cwb-change-btn { padding: 6px 10px; }
   .cwb-change-label { font-size: 0.88rem; }
 }
 
 @media (max-height: 580px) {
-  .current-word-banner { padding: 3px 6px 3px 10px; gap: 1px; }
-  .cwb-word { font-size: 0.92rem; }
+  .current-word-banner { height: 46px; padding: 3px 6px 3px 10px; gap: 1px; }
   .cwb-label { display: none; }
   .cwb-change-hint { display: none; }
   .cwb-change-btn { padding: 5px 8px; }

@@ -57,54 +57,71 @@ const NEIGHBORS_8: readonly [number, number][] = [
 
 /**
  * 盤面内の言葉ブロックを双方向しりとりグラフとしてモデル化し、
- * 連結成分が 3 ノード以上のブロックをすべて消去対象として返す。
+ * 連結成分が 3 ユニット以上のブロックをすべて消去対象として返す。
+ *
+ * 「ユニット」＝ 単独語（1セル）または横2ブロック連結ワード（groupId で紐づく2セル）。
+ * 2ブロック連結ワードは常に1つの単語ユニットとして扱われ、
+ * どちらのセル経由で隣接しても同じユニットとして接続判定される。
  *
  * 接続条件：
- *   - 8方向で隣接している
+ *   - ユニットを構成するいずれかのセルが8方向で隣接している
  *   - A→B または B→A のしりとりが成立する（双方向）
  *
  * これにより V字・L字・ジグザグ・枝分かれなど任意の形状でも消去できる。
- * 同一チェーン内でブロックを重複使用しない（BFS で 1 度しか訪問しない）。
+ * 同一チェーン内でユニットを重複使用しない（BFS で 1 度しか訪問しない）。
+ * 消去対象として返す座標は、マッチしたユニットが持つ全セル
+ * （2ブロックワードなら常に2セルとも）。
  */
 export function findMatchedPositions(board: Board): [number, number][] {
-  // 言葉ブロックのキーを収集
-  const wordKeys: string[] = [];
+  // セル座標 → ユニットID、ユニットID → { 単語, セル座標一覧 }
+  const posToUnit = new Map<string, string>();
+  const unitPositions = new Map<string, [number, number][]>();
+  const unitWord = new Map<string, string>();
+
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const cell = board[r][c];
-      if (cell && cell.type === 'word') wordKeys.push(`${r},${c}`);
+      if (!cell || cell.type !== 'word') continue;
+      const unitId = cell.groupId ?? `${r},${c}`;
+      posToUnit.set(`${r},${c}`, unitId);
+      if (!unitPositions.has(unitId)) {
+        unitPositions.set(unitId, []);
+        unitWord.set(unitId, cell.word);
+      }
+      unitPositions.get(unitId)!.push([r, c]);
     }
   }
 
-  // 無向隣接グラフを構築（双方向で辺を貼る）
+  const unitIds = Array.from(unitPositions.keys());
+
+  // 無向隣接グラフを構築（ユニット単位・双方向で辺を貼る）
   const adj = new Map<string, Set<string>>();
-  for (const k of wordKeys) adj.set(k, new Set());
+  for (const id of unitIds) adj.set(id, new Set());
 
-  for (const k of wordKeys) {
-    const [r, c] = k.split(',').map(Number);
-    const cellA = board[r][c];
-    if (!cellA || cellA.type !== 'word') continue;
+  for (const id of unitIds) {
+    const word = unitWord.get(id)!;
+    for (const [r, c] of unitPositions.get(id)!) {
+      for (const [dr, dc] of NEIGHBORS_8) {
+        const nr = r + dr;
+        const nc = c + dc;
+        if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+        const nUnitId = posToUnit.get(`${nr},${nc}`);
+        if (!nUnitId || nUnitId === id) continue; // 未占有・同一ユニットは無視
 
-    for (const [dr, dc] of NEIGHBORS_8) {
-      const nr = r + dr;
-      const nc = c + dc;
-      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
-      const cellB = board[nr][nc];
-      if (!cellB || cellB.type !== 'word') continue;
-      const nk = `${nr},${nc}`;
-
-      if (canConnect(cellA.word, cellB.word)) {
-        adj.get(k)!.add(nk);
-        adj.get(nk)!.add(k); // 双方向
+        const nWord = unitWord.get(nUnitId)!;
+        if (canConnect(word, nWord)) {
+          adj.get(id)!.add(nUnitId);
+          adj.get(nUnitId)!.add(id); // 双方向
+        }
       }
     }
   }
 
-  // BFS で連結成分を列挙し、サイズ 3 以上を消去対象に追加
+  // BFS で連結成分を列挙し、ユニット数 3 以上を消去対象に追加
   const visited = new Set<string>();
-  const matched = new Set<string>();
+  const matchedUnits = new Set<string>();
 
-  for (const start of wordKeys) {
+  for (const start of unitIds) {
     if (visited.has(start)) continue;
 
     const component: string[] = [];
@@ -123,14 +140,15 @@ export function findMatchedPositions(board: Board): [number, number][] {
     }
 
     if (component.length >= 3) {
-      for (const k of component) matched.add(k);
+      for (const id of component) matchedUnits.add(id);
     }
   }
 
-  return Array.from(matched).map(k => {
-    const [row, col] = k.split(',').map(Number);
-    return [row, col] as [number, number];
-  });
+  const result: [number, number][] = [];
+  for (const id of matchedUnits) {
+    for (const pos of unitPositions.get(id)!) result.push(pos);
+  }
+  return result;
 }
 
 // =============================================

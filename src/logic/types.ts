@@ -12,6 +12,9 @@ export interface WordBlock {
   type: 'word';
   word: string;
   color: string;
+  // 横2ブロック連結ワード用（単独語の場合は両方 undefined）
+  groupId?: string;
+  part?: 0 | 1; // 0 = 左半分, 1 = 右半分
 }
 
 export interface ObstacleBlock {
@@ -25,10 +28,10 @@ export type Cell = GameBlock | null;
 export type Board = Cell[][];
 
 // =============================================
-// ゲームモード（3分チャレンジのみ）
+// ゲームモード（3分チャレンジ / 3分チャレンジ【中】）
 // =============================================
 
-export type GameMode = 'timed';
+export type GameMode = 'timed' | 'timed-medium';
 
 export type Screen = 'top' | 'game';
 

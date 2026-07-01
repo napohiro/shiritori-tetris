@@ -7,7 +7,7 @@ interface Props {
 }
 
 export default function TimerDisplay({ timeRemaining, mode, bonusGlow = false }: Props) {
-  if (mode !== 'timed') return null;
+  if (mode !== 'timed' && mode !== 'timed-medium') return null;
 
   const isTense    = timeRemaining <= 30 && timeRemaining > 10;
   const isUrgent   = timeRemaining <= 10 && timeRemaining > 5;

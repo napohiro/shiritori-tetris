@@ -1,5 +1,10 @@
 import { GameMode, OBSTACLE_BREAK_BONUS } from '../logic/types';
 
+const MODE_LABEL: Record<GameMode, string> = {
+  timed: '3分チャレンジ',
+  'timed-medium': '3分チャレンジ【中】',
+};
+
 interface Props {
   score: number;
   bestScore: number;
@@ -19,6 +24,7 @@ export default function GameOverModal({
   score,
   bestScore,
   maxCombo,
+  mode,
   isTimeUp,
   wordsCleared,
   obstaclesDestroyed,
@@ -35,7 +41,7 @@ export default function GameOverModal({
   return (
     <div className="modal-overlay">
       <div className="modal-box gameover">
-        <div className="go-mode-badge">3分チャレンジ</div>
+        <div className="go-mode-badge">{MODE_LABEL[mode]}</div>
         <h2 className={`modal-title ${titleClass}`}>{title}</h2>
 
         {rankPosition !== null ? (

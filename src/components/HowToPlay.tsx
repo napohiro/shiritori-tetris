@@ -103,6 +103,12 @@ export default function HowToPlay({ onClose }: Props) {
           <p>&#9888; 残り時間が0秒になるとタイムアップ</p>
         </div>
 
+        <div className="howto-modes">
+          <div className="diagram-label" style={{ marginBottom: '6px' }}>モードについて</div>
+          <p><strong>3分チャレンジ：</strong>2文字までの短い言葉で、連鎖の基本を楽しもう</p>
+          <p><strong>3分チャレンジ【中】：</strong>4〜5文字の横2ブロック言葉も登場。長い言葉を活かして連鎖を狙おう</p>
+        </div>
+
         {/* バージョン情報・更新内容 */}
         <div className="howto-version">
           <div className="howto-version-header">

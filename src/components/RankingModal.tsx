@@ -1,8 +1,16 @@
+import { useState } from 'react';
 import { RankingEntry, loadRanking, MAX_RANKING } from '../logic/ranking';
+import { GameMode } from '../logic/types';
 
 const MEDAL = ['🥇', '🥈', '🥉'];
 
+const MODE_LABEL: Record<GameMode, string> = {
+  timed: '3分チャレンジ',
+  'timed-medium': '3分チャレンジ【中】',
+};
+
 interface Props {
+  initialMode?: GameMode;
   onClose: () => void;
 }
 
@@ -31,14 +39,26 @@ function RankingRow({ entry, rank }: { entry: RankingEntry; rank: number }) {
   );
 }
 
-export default function RankingModal({ onClose }: Props) {
-  const ranking = loadRanking();
+export default function RankingModal({ initialMode = 'timed', onClose }: Props) {
+  const [mode, setMode] = useState<GameMode>(initialMode);
+  const ranking = loadRanking(mode);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box ranking-modal" onClick={e => e.stopPropagation()}>
         <h2 className="modal-title">ランキング</h2>
-        <p className="ranking-mode-label">3分チャレンジ</p>
+
+        <div className="ranking-mode-tabs">
+          {(Object.keys(MODE_LABEL) as GameMode[]).map(m => (
+            <button
+              key={m}
+              className={['ranking-mode-tab', mode === m ? 'active' : ''].filter(Boolean).join(' ')}
+              onClick={() => setMode(m)}
+            >
+              {MODE_LABEL[m]}
+            </button>
+          ))}
+        </div>
 
         <div className="ranking-list-wrap">
           {ranking.length === 0 ? (
