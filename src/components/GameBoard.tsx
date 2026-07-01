@@ -1,4 +1,4 @@
-import { Board, COLS, ROWS } from '../logic/types';
+import { Board, COLS, ROWS, unitCells } from '../logic/types';
 import { FallingBlock } from './GameScreen';
 import { getKanaColor, getFirstKana, getLastKana } from '../logic/words';
 
@@ -86,30 +86,74 @@ function renderTwoBlockText(word: string) {
   );
 }
 
+/** 縦2ブロック連結ワード用：上段/下段の2行に自然分割して表示する（例: ひこうき→ひこ／うき）。 */
+function renderVerticalBlockText(word: string) {
+  const mid = Math.ceil(word.length / 2);
+  const firstLine = word.slice(0, mid);
+  const secondLine = word.slice(mid);
+  return (
+    <>
+      {firstLine}
+      <br />
+      {secondLine.slice(0, -1)}<span className="word-last-char">{secondLine.slice(-1)}</span>
+    </>
+  );
+}
+
+/** 縦2ブロック連結ワード用フォントサイズ：上段/下段のうち長い方の行の文字数を基準にする。 */
+function getVerticalFontSize(word: string): string {
+  const mid = Math.ceil(word.length / 2);
+  const maxLineLen = Math.max(mid, word.length - mid);
+  return getWordFontSize('あ'.repeat(maxLineLen));
+}
+
 export default function GameBoard({ board, matchedCells, fallingBlock }: Props) {
   const matchedSet = new Set(matchedCells.map(([r, c]) => `${r},${c}`));
   const chainEdges = matchedCells.length > 0 ? getChainEdges(matchedCells) : [];
 
-  // 落下ブロックが存在するセル（幅2の場合は両セルとも個別描画をスキップする）
-  const fbCols = fallingBlock
-    ? (fallingBlock.width === 2 ? [fallingBlock.col, fallingBlock.col + 1] : [fallingBlock.col])
+  // 落下ブロックが存在するセル（2ブロック語の場合は占有する全セルとも個別描画をスキップする）
+  const fbCells = fallingBlock
+    ? unitCells(fallingBlock.row, fallingBlock.col, fallingBlock.width, fallingBlock.height)
     : [];
   const isFallingCell = (row: number, col: number) =>
-    !!fallingBlock && fallingBlock.row === row && fbCols.includes(col);
+    fbCells.some(([r, c]) => r === row && c === col);
 
-  // 着地済みの横2ブロック連結ワードを重複なく収集（part===0のセルを起点にする）
-  const landedGroups: { row: number; col: number; word: string; color: string; matched: boolean }[] = [];
+  // 着地済みの2ブロック連結ワード（横・縦とも）を重複なく収集（part===0のセルを起点にする）
+  // 相方セルが本当に同じ groupId・part===1・向きの一致するセルであることを必ず検証してから
+  // 2マスにまたがる1要素として描画する。万一ズレていた場合は2ブロックとして描画せず
+  // コンソールに警告を出す（隣の無関係なセルと視覚的に結合してしまう事故を防ぐ）。
+  const landedGroups: {
+    row: number; col: number; word: string; color: string; matched: boolean; orientation: 'h' | 'v';
+  }[] = [];
   for (let row = 0; row < ROWS; row++) {
     for (let col = 0; col < COLS; col++) {
       const cell = board[row][col];
       if (cell && cell.type === 'word' && cell.groupId && cell.part === 0) {
-        const matched = matchedSet.has(`${row},${col}`) && matchedSet.has(`${row},${col + 1}`);
+        const orientation = cell.orientation ?? 'h';
+        const partnerRow = orientation === 'v' ? row + 1 : row;
+        const partnerCol = orientation === 'v' ? col : col + 1;
+        const partnerCell =
+          partnerRow < ROWS && partnerCol < COLS ? board[partnerRow][partnerCol] : null;
+        const partnerOk =
+          partnerCell &&
+          partnerCell.type === 'word' &&
+          partnerCell.groupId === cell.groupId &&
+          partnerCell.part === 1;
+        if (!partnerOk) {
+          // eslint-disable-next-line no-console
+          console.error(
+            `[GameBoard] 2ブロック語の相方セルが見つかりません: row=${row} col=${col} word=${cell.word} orientation=${orientation}`,
+          );
+          continue;
+        }
+        const matched = matchedSet.has(`${row},${col}`) && matchedSet.has(`${partnerRow},${partnerCol}`);
         landedGroups.push({
           row,
           col,
           word: cell.word,
           color: cell.color,
           matched,
+          orientation,
         });
       }
     }
@@ -149,7 +193,7 @@ export default function GameBoard({ board, matchedCells, fallingBlock }: Props) 
                 style={{ gridColumn: col + 1, gridRow: row + 1 }}
               >
                 {/* 落下中ブロック（1ブロック語のみ。2ブロック語は下の spanning 要素で描画） */}
-                {isFalling && fallingBlock && fallingBlock.width === 1 && (
+                {isFalling && fallingBlock && fallingBlock.width === 1 && fallingBlock.height === 1 && (
                   <div
                     className="word-block falling"
                     style={{ '--block-color': fallingBlock.color } as React.CSSProperties}
@@ -210,56 +254,107 @@ export default function GameBoard({ board, matchedCells, fallingBlock }: Props) 
           })
         )}
 
-        {/* 横2ブロック連結ワード（着地済み）：継ぎ目なしの1要素として2列にまたがせる */}
+        {/* 2ブロック連結ワード（着地済み・横/縦）：継ぎ目なしの1要素として2マスにまたがせる */}
         {landedGroups.map(g => (
           <div
             key={`group-${g.row}-${g.col}`}
-            className={['word-block two-block', g.matched ? 'matched' : ''].filter(Boolean).join(' ')}
+            className={[
+              'word-block',
+              g.orientation === 'v' ? 'vertical-block' : 'two-block',
+              g.matched ? 'matched' : '',
+            ].filter(Boolean).join(' ')}
             style={{
               '--block-color': g.color,
-              gridColumn: `${g.col + 1} / span 2`,
-              gridRow: `${g.row + 1} / span 1`,
+              gridColumn: g.orientation === 'v' ? `${g.col + 1} / span 1` : `${g.col + 1} / span 2`,
+              gridRow: g.orientation === 'v' ? `${g.row + 1} / span 2` : `${g.row + 1} / span 1`,
             } as React.CSSProperties}
           >
-            <span
-              className="kana-bar kana-bar-left"
-              style={{ background: getKanaColor(getFirstKana(g.word)) }}
-              aria-hidden="true"
-            />
-            <span className="word-text" style={{ fontSize: getTwoBlockFontSize(g.word) }}>
-              {renderTwoBlockText(g.word)}
-            </span>
-            <span
-              className="kana-bar kana-bar-right"
-              style={{ background: getKanaColor(getLastKana(g.word)) }}
-              aria-hidden="true"
-            />
+            {g.orientation === 'v' ? (
+              <>
+                <span
+                  className="kana-bar kana-bar-top"
+                  style={{ background: getKanaColor(getFirstKana(g.word)) }}
+                  aria-hidden="true"
+                />
+                <span className="word-text" style={{ fontSize: getVerticalFontSize(g.word) }}>
+                  {renderVerticalBlockText(g.word)}
+                </span>
+                <span
+                  className="kana-bar kana-bar-bottom"
+                  style={{ background: getKanaColor(getLastKana(g.word)) }}
+                  aria-hidden="true"
+                />
+              </>
+            ) : (
+              <>
+                <span
+                  className="kana-bar kana-bar-left"
+                  style={{ background: getKanaColor(getFirstKana(g.word)) }}
+                  aria-hidden="true"
+                />
+                <span className="word-text" style={{ fontSize: getTwoBlockFontSize(g.word) }}>
+                  {renderTwoBlockText(g.word)}
+                </span>
+                <span
+                  className="kana-bar kana-bar-right"
+                  style={{ background: getKanaColor(getLastKana(g.word)) }}
+                  aria-hidden="true"
+                />
+              </>
+            )}
           </div>
         ))}
 
-        {/* 横2ブロック連結ワード（落下中） */}
-        {fallingBlock && fallingBlock.width === 2 && (
+        {/* 2ブロック連結ワード（落下中・横/縦） */}
+        {fallingBlock && (fallingBlock.width === 2 || fallingBlock.height === 2) && (
           <div
-            className="word-block two-block falling"
+            className={[
+              'word-block falling',
+              fallingBlock.height === 2 ? 'vertical-block' : 'two-block',
+            ].filter(Boolean).join(' ')}
             style={{
               '--block-color': fallingBlock.color,
-              gridColumn: `${fallingBlock.col + 1} / span 2`,
-              gridRow: `${fallingBlock.row + 1} / span 1`,
+              gridColumn: fallingBlock.height === 2
+                ? `${fallingBlock.col + 1} / span 1`
+                : `${fallingBlock.col + 1} / span 2`,
+              gridRow: fallingBlock.height === 2
+                ? `${fallingBlock.row + 1} / span 2`
+                : `${fallingBlock.row + 1} / span 1`,
             } as React.CSSProperties}
           >
-            <span
-              className="kana-bar kana-bar-left"
-              style={{ background: getKanaColor(getFirstKana(fallingBlock.word)) }}
-              aria-hidden="true"
-            />
-            <span className="word-text" style={{ fontSize: getTwoBlockFontSize(fallingBlock.word) }}>
-              {renderTwoBlockText(fallingBlock.word)}
-            </span>
-            <span
-              className="kana-bar kana-bar-right"
-              style={{ background: getKanaColor(getLastKana(fallingBlock.word)) }}
-              aria-hidden="true"
-            />
+            {fallingBlock.height === 2 ? (
+              <>
+                <span
+                  className="kana-bar kana-bar-top"
+                  style={{ background: getKanaColor(getFirstKana(fallingBlock.word)) }}
+                  aria-hidden="true"
+                />
+                <span className="word-text" style={{ fontSize: getVerticalFontSize(fallingBlock.word) }}>
+                  {renderVerticalBlockText(fallingBlock.word)}
+                </span>
+                <span
+                  className="kana-bar kana-bar-bottom"
+                  style={{ background: getKanaColor(getLastKana(fallingBlock.word)) }}
+                  aria-hidden="true"
+                />
+              </>
+            ) : (
+              <>
+                <span
+                  className="kana-bar kana-bar-left"
+                  style={{ background: getKanaColor(getFirstKana(fallingBlock.word)) }}
+                  aria-hidden="true"
+                />
+                <span className="word-text" style={{ fontSize: getTwoBlockFontSize(fallingBlock.word) }}>
+                  {renderTwoBlockText(fallingBlock.word)}
+                </span>
+                <span
+                  className="kana-bar kana-bar-right"
+                  style={{ background: getKanaColor(getLastKana(fallingBlock.word)) }}
+                  aria-hidden="true"
+                />
+              </>
+            )}
           </div>
         )}
       </div>

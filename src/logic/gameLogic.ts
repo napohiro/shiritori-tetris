@@ -93,40 +93,58 @@ function landingRowForColumn(board: Board, col: number): number {
 }
 
 /**
- * 指定列に言葉ブロックを落とす。
- * width=2 のときは col と col+1 の2列に横連結ワードとして配置する。
- * 配置できない場合（列が満杯 / 2列目が盤外）は null を返す。
+ * 指定列に言葉ブロックを落とす。row はユニットの最上段（＝1ブロック語・横2連結ではその行、
+ * 縦2連結では上半分の行）。
+ * width=2 → 横2連結（col, col+1）、height=2 → 縦2連結（col の row, row+1）。
+ * width/height を同時に 2 にはしない。配置できない場合は null を返す。
  */
 export function dropBlock(
   board: Board,
   col: number,
   word: string,
   width: 1 | 2 = 1,
+  height: 1 | 2 = 1,
 ): { newBoard: Board; dropRow: number } | null {
-  if (width === 1) {
-    const dropRow = landingRowForColumn(board, col);
+  if (width === 2) {
+    const rightCol = col + 1;
+    if (rightCol >= COLS) return null;
+
+    // 横2ブロック語は左右どちらか片方だけが先にぶつかる位置でユニット全体が止まる
+    const dropRow = Math.min(landingRowForColumn(board, col), landingRowForColumn(board, rightCol));
     if (dropRow < 0) return null;
 
     const newBoard = cloneBoard(board);
-    const block: WordBlock = { id: makeId(), type: 'word', word, color: assignColor() };
-    newBoard[dropRow][col] = block;
+    const groupId = makeId();
+    const color = assignColor();
+    const left: WordBlock = { id: makeId(), type: 'word', word, color, groupId, part: 0, orientation: 'h' };
+    const right: WordBlock = { id: makeId(), type: 'word', word, color, groupId, part: 1, orientation: 'h' };
+    newBoard[dropRow][col] = left;
+    newBoard[dropRow][rightCol] = right;
     return { newBoard, dropRow };
   }
 
-  const rightCol = col + 1;
-  if (rightCol >= COLS) return null;
+  if (height === 2) {
+    // 縦2ブロック語：下段が着地する行の、その一段上に上段が来る
+    const bottomRow = landingRowForColumn(board, col);
+    const dropRow = bottomRow - 1;
+    if (dropRow < 0) return null;
 
-  // 横2ブロック語は左右どちらか片方だけが先にぶつかる位置でユニット全体が止まる
-  const dropRow = Math.min(landingRowForColumn(board, col), landingRowForColumn(board, rightCol));
+    const newBoard = cloneBoard(board);
+    const groupId = makeId();
+    const color = assignColor();
+    const top: WordBlock = { id: makeId(), type: 'word', word, color, groupId, part: 0, orientation: 'v' };
+    const bottom: WordBlock = { id: makeId(), type: 'word', word, color, groupId, part: 1, orientation: 'v' };
+    newBoard[dropRow][col] = top;
+    newBoard[bottomRow][col] = bottom;
+    return { newBoard, dropRow };
+  }
+
+  const dropRow = landingRowForColumn(board, col);
   if (dropRow < 0) return null;
 
   const newBoard = cloneBoard(board);
-  const groupId = makeId();
-  const color = assignColor();
-  const left: WordBlock = { id: makeId(), type: 'word', word, color, groupId, part: 0 };
-  const right: WordBlock = { id: makeId(), type: 'word', word, color, groupId, part: 1 };
-  newBoard[dropRow][col] = left;
-  newBoard[dropRow][rightCol] = right;
+  const block: WordBlock = { id: makeId(), type: 'word', word, color: assignColor() };
+  newBoard[dropRow][col] = block;
   return { newBoard, dropRow };
 }
 
@@ -141,8 +159,8 @@ export function removeMatched(board: Board, matched: [number, number][]): Board 
 
 /**
  * 重力処理：各列のブロックを下へ詰める。
- * 横2ブロック連結ワード（同じ groupId を持つ2セル）は必ず同じ行を保ったまま、
- * 2セル同時に1段ずつ沈める（片方だけ落ちる・止まることはない）。
+ * 2ブロック連結ワード（同じ groupId を持つ2セル）は、横向き・縦向きいずれでも
+ * 必ずユニットの形を保ったまま2セル同時に1段ずつ沈める（片方だけ落ちる・止まることはない）。
  * 変化がなくなるまで反復するため、グループが無い盤面では従来の列コンパクションと同じ結果になる。
  */
 export function applyGravity(board: Board): Board {
@@ -159,17 +177,37 @@ export function applyGravity(board: Board): Board {
         if (!cell) continue;
 
         if (cell.type === 'word' && cell.groupId) {
-          const partnerCol = cell.part === 0 ? col + 1 : col - 1;
-          visited.add(key);
-          if (partnerCol < 0 || partnerCol >= COLS) continue; // 安全策（本来起こらない）
-          visited.add(`${row},${partnerCol}`);
-          const partner = b[row][partnerCol];
-          if (b[row + 1][col] === null && b[row + 1][partnerCol] === null) {
-            b[row + 1][col] = cell;
-            b[row + 1][partnerCol] = partner;
-            b[row][col] = null;
-            b[row][partnerCol] = null;
-            moved = true;
+          if (cell.orientation === 'v') {
+            // 縦2連結：相方は同じ列の上下どちらか。下段の直下が空いていればユニットごと1段沈める。
+            const partnerRow = cell.part === 0 ? row + 1 : row - 1;
+            visited.add(key);
+            if (partnerRow < 0 || partnerRow >= ROWS) continue; // 安全策（本来起こらない）
+            visited.add(`${partnerRow},${col}`);
+            const topRow = Math.min(row, partnerRow);
+            const bottomRow = Math.max(row, partnerRow);
+            const topCell = b[topRow][col];
+            const bottomCell = b[bottomRow][col];
+            if (bottomRow + 1 < ROWS && b[bottomRow + 1][col] === null) {
+              b[bottomRow + 1][col] = bottomCell;
+              b[topRow + 1][col] = topCell;
+              b[topRow][col] = null;
+              b[bottomRow][col] = null;
+              moved = true;
+            }
+          } else {
+            // 横2連結：相方は同じ行の左右どちらか
+            const partnerCol = cell.part === 0 ? col + 1 : col - 1;
+            visited.add(key);
+            if (partnerCol < 0 || partnerCol >= COLS) continue; // 安全策（本来起こらない）
+            visited.add(`${row},${partnerCol}`);
+            const partner = b[row][partnerCol];
+            if (b[row + 1][col] === null && b[row + 1][partnerCol] === null) {
+              b[row + 1][col] = cell;
+              b[row + 1][partnerCol] = partner;
+              b[row][col] = null;
+              b[row][partnerCol] = null;
+              moved = true;
+            }
           }
         } else {
           visited.add(key);
@@ -347,8 +385,14 @@ export interface TurnResult {
 }
 
 /** 配置→マッチ→消去→重力→連鎖をまとめて処理し、各ステップを返す。 */
-export function processTurn(board: Board, col: number, word: string, width: 1 | 2 = 1): TurnResult | null {
-  const dropResult = dropBlock(board, col, word, width);
+export function processTurn(
+  board: Board,
+  col: number,
+  word: string,
+  width: 1 | 2 = 1,
+  height: 1 | 2 = 1,
+): TurnResult | null {
+  const dropResult = dropBlock(board, col, word, width, height);
   if (!dropResult) return null;
 
   let current = dropResult.newBoard;

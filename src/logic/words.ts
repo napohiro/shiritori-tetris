@@ -57,6 +57,16 @@ export const LONG_WORDS: string[] = [
   'まんじゅう', 'こんにゃく', 'さつまいも', 'むしめがね', 'おにごっこ', 'ぬいぐるみ', 'れいぞうこ', 'かくれんぼ',
 ];
 
+// VERTICAL_WORDS: LONG_WORDS のうち、上段/下段に分割しても自然に読める語だけを抽出。
+// 分割位置（Math.ceil(文字数/2)）の直後が小書き仮名（ゃゅょっ等）になる語は、
+// 下段が孤立した小さい文字から始まって不自然に見えるため除外する。
+// 単語データ自体に horizontal/vertical の向きは持たせず、この判定だけで導出する。
+const SMALL_KANA = new Set(['ぁ', 'ぃ', 'ぅ', 'ぇ', 'ぉ', 'っ', 'ゃ', 'ゅ', 'ょ', 'ゎ']);
+export const VERTICAL_WORDS: string[] = LONG_WORDS.filter(w => {
+  const mid = Math.ceil(w.length / 2);
+  return !SMALL_KANA.has(w[mid]);
+});
+
 // ─── 後方互換（gameLogic の createInitialState で利用）──────
 export function createWordQueue(): string[] {
   const arr = [...SHORT_WORDS, ...MEDIUM_LOW_WORDS, ...LONG_WORDS];

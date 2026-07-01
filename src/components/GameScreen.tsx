@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Board, COLS, GameMode, GameState, ROWS } from '../logic/types';
+import { Board, COLS, GameMode, GameState, ROWS, unitCells } from '../logic/types';
 import {
   processTurn,
   isGameOver as checkGameOver,
@@ -19,6 +19,7 @@ import {
   SHORT_WORDS,
   MEDIUM_SHORT_WORDS,
   LONG_WORDS,
+  VERTICAL_WORDS,
   getKanaColor,
 } from '../logic/words';
 import ScoreBar from './ScoreBar';
@@ -37,11 +38,13 @@ export interface FallingBlock {
   word: string;
   color: string;
   width: 1 | 2;
+  height: 1 | 2;
 }
 
 interface SpawnWord {
   word: string;
   width: 1 | 2;
+  height: 1 | 2;
 }
 
 interface Props {
@@ -80,27 +83,41 @@ function getChainLabel(matchCount: number): string {
   return 'CHAIN!';
 }
 
-// ─── モード別・幅別の単語選択 ───
-const LONG_WORD_RATIO = 0.4; // 中級モードで横2ブロック語が出現する割合（約40%）
+// ─── モード別・形状別の単語選択 ───
+// 中級モードの出現割合の目安：1ブロック語 約55% / 横2連結 約25% / 縦2連結 約20%
+const HORIZONTAL_RATIO = 0.25;
+const VERTICAL_RATIO = 0.20;
 
 function shortPool(mode: GameMode): string[] {
   return mode === 'timed-medium' ? MEDIUM_SHORT_WORDS : SHORT_WORDS;
 }
 
-/** モードに応じて次に出す言葉と幅（1 or 2）を選ぶ。 */
+/** モードに応じて次に出す言葉と形状（width/height）を選ぶ。 */
 function pickSpawnWord(board: Board, mode: GameMode, exclude: string | null): SpawnWord {
-  if (mode === 'timed-medium' && Math.random() < LONG_WORD_RATIO) {
-    return { word: pickSmartWord(board, exclude, LONG_WORDS), width: 2 };
+  if (mode === 'timed-medium') {
+    const r = Math.random();
+    if (r < HORIZONTAL_RATIO) {
+      return { word: pickSmartWord(board, exclude, LONG_WORDS), width: 2, height: 1 };
+    }
+    if (r < HORIZONTAL_RATIO + VERTICAL_RATIO) {
+      return { word: pickSmartWord(board, exclude, VERTICAL_WORDS), width: 1, height: 2 };
+    }
   }
-  return { word: pickSmartWord(board, exclude, shortPool(mode)), width: 1 };
+  return { word: pickSmartWord(board, exclude, shortPool(mode)), width: 1, height: 1 };
 }
 
-/** NEXT用：直前の単語につながりやすい候補を優先しつつ、モードに応じた幅を選ぶ。 */
+/** NEXT用：直前の単語につながりやすい候補を優先しつつ、モードに応じた形状を選ぶ。 */
 function pickSpawnNextWord(currentWord: string, board: Board, mode: GameMode, exclude: string | null): SpawnWord {
-  if (mode === 'timed-medium' && Math.random() < LONG_WORD_RATIO) {
-    return { word: pickNextWord(currentWord, board, exclude, LONG_WORDS), width: 2 };
+  if (mode === 'timed-medium') {
+    const r = Math.random();
+    if (r < HORIZONTAL_RATIO) {
+      return { word: pickNextWord(currentWord, board, exclude, LONG_WORDS), width: 2, height: 1 };
+    }
+    if (r < HORIZONTAL_RATIO + VERTICAL_RATIO) {
+      return { word: pickNextWord(currentWord, board, exclude, VERTICAL_WORDS), width: 1, height: 2 };
+    }
   }
-  return { word: pickNextWord(currentWord, board, exclude, shortPool(mode)), width: 1 };
+  return { word: pickNextWord(currentWord, board, exclude, shortPool(mode)), width: 1, height: 1 };
 }
 
 /** 現在ワードバナー・NEXT表示で、文字数によらず1行に収まるフォントサイズを返す。 */
@@ -148,6 +165,37 @@ function findPairSpawnCol(board: Board): number {
     }
   }
   return best;
+}
+
+/** 縦2ブロック語：スポーン行(row0,row1)とも空いている、最も中央に近い列を探す。 */
+function findVerticalSpawnCol(board: Board): number {
+  const center = Math.floor(COLS / 2);
+  for (let offset = 0; offset < COLS; offset++) {
+    const left = center - offset;
+    const right = center + offset;
+    if (left >= 0 && board[0][left] === null && board[1][left] === null) return left;
+    if (right < COLS && board[0][right] === null && board[1][right] === null) return right;
+  }
+  return -1;
+}
+
+/** 形状に応じたスポーン列探索の振り分け。 */
+function findSpawnCol(board: Board, width: 1 | 2, height: 1 | 2): number {
+  if (width === 2) return findPairSpawnCol(board);
+  if (height === 2) return findVerticalSpawnCol(board);
+  return findSingleSpawnCol(board);
+}
+
+/**
+ * 落下中ユニット（1x1 / 横2連結 / 縦2連結）が、指定位置に置けるかどうかを判定する
+ * 唯一の判定関数。落下・高速落下・左右移動のすべてがこの関数だけを使う。
+ */
+function canOccupy(board: Board, row: number, col: number, width: 1 | 2, height: 1 | 2): boolean {
+  for (const [r, c] of unitCells(row, col, width, height)) {
+    if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return false;
+    if (board[r][c] !== null) return false;
+  }
+  return true;
 }
 
 // ─── 現在落下中の言葉の最初・最後の文字を取得 ───
@@ -226,13 +274,11 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     const mode = stateRef.current.mode;
     let spawn: SpawnWord = nextWordRef.current ?? pickSpawnWord(boardAfterChains, mode, null);
 
-    let spawnCol = spawn.width === 2
-      ? findPairSpawnCol(boardAfterChains)
-      : findSingleSpawnCol(boardAfterChains);
+    let spawnCol = findSpawnCol(boardAfterChains, spawn.width, spawn.height);
 
-    // 横2ブロック語を置く隙間が無ければ、1ブロック語にフォールバック
-    if (spawnCol === -1 && spawn.width === 2) {
-      spawn = { word: pickSmartWord(boardAfterChains, spawn.word, shortPool(mode)), width: 1 };
+    // 2ブロック語を置く隙間が無ければ、安全に置ける1ブロック語にフォールバック
+    if (spawnCol === -1 && (spawn.width === 2 || spawn.height === 2)) {
+      spawn = { word: pickSmartWord(boardAfterChains, spawn.word, shortPool(mode)), width: 1, height: 1 };
       spawnCol = findSingleSpawnCol(boardAfterChains);
     }
 
@@ -253,6 +299,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
       word: spawn.word,
       color: assignColor(),
       width: spawn.width,
+      height: spawn.height,
     };
     setFallingBlock(newBlock);
     fallingBlockRef.current = newBlock;
@@ -267,9 +314,9 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     const emptyBoard = createEmptyBoard();
     const mode = stateRef.current.mode;
     let first = pickSpawnWord(emptyBoard, mode, null);
-    let startCol = first.width === 2 ? findPairSpawnCol(emptyBoard) : findSingleSpawnCol(emptyBoard);
-    if (startCol === -1 && first.width === 2) {
-      first = { word: pickSmartWord(emptyBoard, first.word, shortPool(mode)), width: 1 };
+    let startCol = findSpawnCol(emptyBoard, first.width, first.height);
+    if (startCol === -1 && (first.width === 2 || first.height === 2)) {
+      first = { word: pickSmartWord(emptyBoard, first.word, shortPool(mode)), width: 1, height: 1 };
       startCol = findSingleSpawnCol(emptyBoard);
     }
     const second = pickSpawnNextWord(first.word, emptyBoard, mode, first.word);
@@ -283,6 +330,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
       word: first.word,
       color: assignColor(),
       width: first.width,
+      height: first.height,
     };
     setFallingBlock(newBlock);
     fallingBlockRef.current = newBlock;
@@ -349,7 +397,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     fallingBlockRef.current = null;
 
     const currentBoard = boardRef.current;
-    const result = processTurn(currentBoard, fb.col, fb.word, fb.width);
+    const result = processTurn(currentBoard, fb.col, fb.word, fb.width, fb.height);
 
     if (!result) {
       // 列が満杯（通常起こらないが安全策）
@@ -514,9 +562,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
 
       const board = boardRef.current;
       const nextRow = fb.row + 1;
-      const canFall = nextRow < ROWS
-        && board[nextRow][fb.col] === null
-        && (fb.width === 1 || board[nextRow][fb.col + 1] === null);
+      const canFall = canOccupy(board, nextRow, fb.col, fb.width, fb.height);
 
       if (canFall) {
         const updated = { ...fb, row: nextRow };
@@ -539,10 +585,8 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     const fb = fallingBlockRef.current;
     if (!fb) return;
 
-    // 幅2の場合も「新しく入る側」の列だけ判定すればよい（もう片方は既に自分が占めていた列）
     const newCol = fb.col - 1;
-    if (newCol < 0) return;
-    if (boardRef.current[fb.row][newCol] !== null) return;
+    if (!canOccupy(boardRef.current, fb.row, newCol, fb.width, fb.height)) return;
 
     const updated = { ...fb, col: newCol };
     setFallingBlock(updated);
@@ -555,9 +599,7 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     if (!fb) return;
 
     const newCol = fb.col + 1;
-    const newRightEdge = newCol + (fb.width - 1);
-    if (newRightEdge >= COLS) return;
-    if (boardRef.current[fb.row][newRightEdge] !== null) return;
+    if (!canOccupy(boardRef.current, fb.row, newCol, fb.width, fb.height)) return;
 
     const updated = { ...fb, col: newCol };
     setFallingBlock(updated);
@@ -580,8 +622,8 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     const fb = fallingBlockRef.current;
     if (!fb) return;
 
-    // 盤面につながりやすい単語を優先して選ぶ（幅・位置は変えない＝回転なし）
-    const pool = fb.width === 2 ? LONG_WORDS : shortPool(stateRef.current.mode);
+    // 盤面につながりやすい単語を優先して選ぶ（形状・位置は変えない＝回転なし）
+    const pool = fb.width === 2 ? LONG_WORDS : fb.height === 2 ? VERTICAL_WORDS : shortPool(stateRef.current.mode);
     const newWord = pickSmartWord(boardRef.current, fb.word, pool);
 
     const updated = { ...fb, word: newWord };
@@ -716,7 +758,8 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
           <div className="cwb-main">
             <div className="cwb-label">
               いま落ちている言葉
-              {fallingBlock.width === 2 && <span className="cwb-badge">2連結</span>}
+              {fallingBlock.width === 2 && <span className="cwb-badge">横2連結</span>}
+              {fallingBlock.height === 2 && <span className="cwb-badge">縦2連結</span>}
             </div>
             <div className="cwb-word" style={{ fontSize: getBannerFontSize(fallingBlock.word) }}>
               {fallingBlock.word.slice(0, -1)}
@@ -805,7 +848,8 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
               {nextWord.word}
             </span>
           )}
-          {nextWord?.width === 2 && <span className="next-word-badge">2連結</span>}
+          {nextWord?.width === 2 && <span className="next-word-badge">横2連結</span>}
+          {nextWord?.height === 2 && <span className="next-word-badge">縦2連結</span>}
         </div>
 
         {/* 操作ボタン（左・落とす・右） */}

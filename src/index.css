@@ -525,6 +525,19 @@ button:active { transform: scale(0.95); }
 .kana-bar-left  { left: 2px; }
 .kana-bar-right { right: 2px; }
 
+/* 縦2ブロック連結ワード用：上下端に横帯として表示（左右バーの90°回転版） */
+.kana-bar-top,
+.kana-bar-bottom {
+  left: 2px;
+  right: 2px;
+  top: auto;
+  bottom: auto;
+  width: auto;
+  height: 3px;
+}
+.kana-bar-top    { top: 2px; }
+.kana-bar-bottom { bottom: 2px; }
+
 .word-text {
   font-size: clamp(0.62rem, 2.6vw, 0.9rem);
   font-weight: 800;
@@ -557,6 +570,21 @@ button:active { transform: scale(0.95); }
 .word-block.two-block .word-text {
   white-space: nowrap;
   word-break: normal;
+}
+
+/* ─── 縦2ブロック連結ワード：2行にまたがる1つのブロックとして継ぎ目なく表示 ─── */
+.word-block.vertical-block {
+  /* CSS Grid の grid-row: span 2 で2セル分をまたぐため、
+     グリッド自体のトラックサイズ（盤面サイズ）には一切影響しない */
+  z-index: 1;
+}
+
+.word-block.vertical-block .word-text {
+  /* <br/> による上段/下段の改行だけを許可し、各行内での折り返しは起こさない */
+  white-space: nowrap;
+  word-break: normal;
+  padding: 7px 2px;
+  line-height: 1.2;
 }
 
 .word-last-char {
