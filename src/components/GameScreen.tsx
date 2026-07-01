@@ -61,6 +61,42 @@ interface Props {
 
 const FAST_FALL_MS = 60;           // 高速落下（下ボタン）の落下間隔 ms
 const PAUSE_RESUME_DELAY_MS = 750; // ポーズ解除後の落下開始遅延 ms
+const TUTORIAL_SEEN_KEY = 'shiritori-tetris-tutorial-seen';
+
+// ─── 左右ボタン長押し連続移動の設定 ───
+const HOLD_INITIAL_DELAY_MS = 300;  // 押してから連続移動が始まるまでの間
+const HOLD_REPEAT_INTERVAL_MS = 130; // 連続移動の間隔（1マスずつ意図通りに動かせる速さ）
+
+/**
+ * ボタン長押しで一定間隔ごとに action を繰り返し呼ぶ共通フック。
+ * 押した瞬間に1回即実行し、少し間を置いてから連続移動を開始する。
+ * action は常に最新の関数を呼ぶため、保持中に一時停止等の状態が変わっても
+ * 古い判定のまま動き続けることがない。
+ */
+function useHoldRepeat(action: () => void) {
+  const actionRef = useRef(action);
+  useEffect(() => { actionRef.current = action; }, [action]);
+
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stop = useCallback(() => {
+    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+  }, []);
+
+  const start = useCallback(() => {
+    stop();
+    actionRef.current();
+    timeoutRef.current = setTimeout(() => {
+      intervalRef.current = setInterval(() => actionRef.current(), HOLD_REPEAT_INTERVAL_MS);
+    }, HOLD_INITIAL_DELAY_MS);
+  }, [stop]);
+
+  useEffect(() => stop, [stop]);
+
+  return { start, stop };
+}
 
 // ─── 通常落下速度の設定定数（ここを変えるだけで調整可能）───
 const FALL_SPEED_INITIAL_MS    = 1600; // 開始直後の落下間隔（目安: 1マス落下に1.6秒）
@@ -241,7 +277,13 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   const [timeBonusInfo, setTimeBonusInfo] = useState<{ bonus: number; key: number } | null>(null);
   const [timerBonusGlow, setTimerBonusGlow] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(true);
+  const [showTutorial, setShowTutorial] = useState(() => {
+    try {
+      return !localStorage.getItem(TUTORIAL_SEEN_KEY);
+    } catch {
+      return true;
+    }
+  });
   const [pauseResumeDelay, setPauseResumeDelay] = useState(false);
 
   // ─── Refs ───
@@ -334,9 +376,18 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     };
     setFallingBlock(newBlock);
     fallingBlockRef.current = newBlock;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    // チュートリアルヒントを3秒後に消す
-    const tid = setTimeout(() => setShowTutorial(false), 3500);
+  // 初回ヒントは数秒で自然に消し、一度見たら LocalStorage に記録して次回以降は出さない
+  useEffect(() => {
+    if (!showTutorial) return;
+    const tid = setTimeout(() => {
+      setShowTutorial(false);
+      try {
+        localStorage.setItem(TUTORIAL_SEEN_KEY, '1');
+      } catch { /* StorageError — 無視 */ }
+    }, 4200);
     return () => clearTimeout(tid);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -606,6 +657,11 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     fallingBlockRef.current = updated;
   }, [state.isPaused, state.isGameOver]);
 
+  // 左右ボタンの長押し連続移動（下部ボタン・盤面スワイプの左右移動は必ずこの
+  // handleMoveLeft / handleMoveRight を経由するため、判定がズレることはない）
+  const leftRepeat = useHoldRepeat(handleMoveLeft);
+  const rightRepeat = useHoldRepeat(handleMoveRight);
+
   const handleDownStart = useCallback(() => {
     if (processingRef.current || state.isPaused || state.isGameOver || isGameOverRef.current) return;
     setFastFall(true);
@@ -634,31 +690,40 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   }, [state.isPaused, state.isGameOver, setState]);
 
   // =============================================
-  // スワイプジェスチャー
+  // 盤面スワイプ操作（落下中ブロックの操作専用。下部ボタンと必ず同じ
+  // handleMoveLeft / handleMoveRight / handleDownStart / handleDownEnd を呼ぶ）
   // =============================================
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const SWIPE_THRESHOLD = 28; // これ未満の移動は誤操作防止のため無視する
+  const SWIPE_FAST_FALL_MIN_MS = 350;
+  const SWIPE_FAST_FALL_MAX_MS = 1400;
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (isBlocked || !fallingBlockRef.current) return;
     touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (!touchStartRef.current) return;
-    const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
-    const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
+    const start = touchStartRef.current;
+    touchStartRef.current = null; // 1回のスワイプにつき1回だけ判定する
+    if (isBlocked || !fallingBlockRef.current) return;
+
+    const dx = e.changedTouches[0].clientX - start.x;
+    const dy = e.changedTouches[0].clientY - start.y;
     const adx = Math.abs(dx);
     const ady = Math.abs(dy);
-    const THRESHOLD = 32;
 
-    if (adx > ady && adx > THRESHOLD) {
+    if (adx > ady && adx > SWIPE_THRESHOLD) {
+      // 横スワイプ：距離に関わらず1回のスワイプ＝1マス移動に固定する
       if (dx < 0) handleMoveLeft();
       else handleMoveRight();
-    } else if (ady > adx && ady > THRESHOLD && dy > 0) {
-      // 下スワイプ → 高速落下を一時的に有効化
+    } else if (ady > adx && ady > SWIPE_THRESHOLD && dy > 0) {
+      // 下スワイプ：大きいスワイプほど少し長く高速落下させる
+      const duration = Math.min(SWIPE_FAST_FALL_MAX_MS, SWIPE_FAST_FALL_MIN_MS + ady * 2);
       handleDownStart();
-      setTimeout(handleDownEnd, 400);
+      setTimeout(handleDownEnd, duration);
     }
-    touchStartRef.current = null;
   };
 
   // =============================================
@@ -696,7 +761,11 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
     setTimeBonusInfo(null);
     setTimerBonusGlow(false);
     setDisplayBoard(createEmptyBoard());
-    setShowTutorial(true);
+    try {
+      setShowTutorial(!localStorage.getItem(TUTORIAL_SEEN_KEY));
+    } catch {
+      setShowTutorial(true);
+    }
     setFastFall(false);
     onRestart();
   };
@@ -725,12 +794,17 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
   // =============================================
   const isBlocked = processing || state.isPaused || state.isGameOver;
 
+  // ポーズ・タイムアップ・演出中になったら、保持中の長押し連続移動を即座に止める
+  useEffect(() => {
+    if (isBlocked) {
+      leftRepeat.stop();
+      rightRepeat.stop();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBlocked]);
+
   return (
-    <div
-      className="game-screen"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <div className="game-screen">
       {/* ヘッダー */}
       <div className="game-header">
         <ScoreBar
@@ -799,7 +873,11 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
       )}
 
       {/* 盤面エリア */}
-      <div className="board-area">
+      <div
+        className="board-area"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <GameBoard
           board={displayBoard}
           matchedCells={matchedCells}
@@ -830,10 +908,12 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
         {/* コンボ */}
         <ComboOverlay combo={comboCount} visible={showCombo} />
 
-        {/* チュートリアルヒント */}
+        {/* チュートリアルヒント（初回のみ表示） */}
         {showTutorial && !state.isGameOver && (
           <div className="tutorial-hint">
-            左右で移動 &nbsp;／&nbsp; 下で落とす &nbsp;／&nbsp; バナーの変更ボタンで入れ替え
+            <p>左右ボタンかスワイプで動かそう</p>
+            <p>下ボタンか下スワイプで高速落下</p>
+            <p>言葉は上の「変更」で入れ替え可能</p>
           </div>
         )}
       </div>
@@ -854,10 +934,13 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
 
         {/* 操作ボタン（左・落とす・右） */}
         <div className="control-buttons">
-          {/* 左 */}
+          {/* 左（長押しで連続移動） */}
           <button
             className="ctrl-btn ctrl-left"
-            onClick={handleMoveLeft}
+            onPointerDown={leftRepeat.start}
+            onPointerUp={leftRepeat.stop}
+            onPointerLeave={leftRepeat.stop}
+            onPointerCancel={leftRepeat.stop}
             disabled={isBlocked}
             aria-label="左へ移動"
           >
@@ -879,10 +962,13 @@ export default function GameScreen({ state, setState, onRestart, onTop, onShowRa
             <span className="ctrl-label">落とす</span>
           </button>
 
-          {/* 右 */}
+          {/* 右（長押しで連続移動） */}
           <button
             className="ctrl-btn ctrl-right"
-            onClick={handleMoveRight}
+            onPointerDown={rightRepeat.start}
+            onPointerUp={rightRepeat.stop}
+            onPointerLeave={rightRepeat.stop}
+            onPointerCancel={rightRepeat.stop}
             disabled={isBlocked}
             aria-label="右へ移動"
           >

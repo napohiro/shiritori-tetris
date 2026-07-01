@@ -25,7 +25,10 @@ export default function HowToPlay({ onClose }: Props) {
               <span className="howto-num">2</span>
               <div>
                 <strong>◀ 左 ／ ▶ 右 で列を移動</strong>
-                <p>左右ボタンを押すと落下中の言葉ブロックが左右に1マスずつ動きます。連打してもOK。</p>
+                <p>
+                  左右ボタンを押すと落下中の言葉ブロックが左右に1マスずつ動きます。押し続けると少し間を置いてから連続で動きます。<br />
+                  盤面を左右に短くスワイプしても同じように1マス動かせます。
+                </p>
               </div>
             </div>
           </li>
@@ -34,7 +37,10 @@ export default function HowToPlay({ onClose }: Props) {
               <span className="howto-num">3</span>
               <div>
                 <strong>▼▼ ボタンで高速落下</strong>
-                <p>▼▼ ボタンを押し続けている間、高速で落下します。すばやく着地させたいときに使おう。</p>
+                <p>
+                  ▼▼ ボタンを押し続けている間、高速で落下します。すばやく着地させたいときに使おう。<br />
+                  盤面を下にスワイプしても高速落下できます。
+                </p>
               </div>
             </div>
           </li>
